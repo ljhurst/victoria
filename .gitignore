@@ -1,0 +1,11 @@
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/crash.log
+infra/override.tf
+infra/override.tf.json
+infra/*.tfvars
+
+# Editor swap files
+*.swp

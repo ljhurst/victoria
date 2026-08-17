@@ -1,0 +1,5 @@
+aws_region   = "us-east-1"
+environment  = "prod"
+project_name = "victoria"
+
+lambda_package_path = "../agent/dist/victoria.zip"
