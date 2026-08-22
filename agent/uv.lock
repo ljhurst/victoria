@@ -1274,6 +1274,7 @@ dependencies = [
     { name = "mangum" },
     { name = "mcp" },
     { name = "pydantic-settings" },
+    { name = "pyjwt", extra = ["crypto"] },
 ]
 
 [package.dev-dependencies]
@@ -1292,6 +1293,7 @@ requires-dist = [
     { name = "mangum", specifier = ">=0.21.0" },
     { name = "mcp", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.13.0" },
 ]
 
 [package.metadata.requires-dev]

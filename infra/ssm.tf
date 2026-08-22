@@ -13,13 +13,3 @@ resource "aws_ssm_parameter" "anthropic_api_key" {
     ignore_changes = [value]
   }
 }
-
-resource "aws_ssm_parameter" "mcp_auth_token" {
-  name  = "/victoria/mcp-auth-token"
-  type  = "SecureString"
-  value = "REPLACE_ME_MANUALLY"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}

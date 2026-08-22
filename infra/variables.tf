@@ -14,12 +14,22 @@ variable "project_name" {
 }
 
 variable "bucket_name" {
-  description = "S3 bucket holding the entire wiki (DESIGN §3, §4)."
+  description = "S3 bucket holding the entire wiki"
   type        = string
   default     = "lj-victoria-wiki"
 }
 
 variable "lambda_package_path" {
   description = "Path to the zipped Lambda deployment package. Run `agent/scripts/build_lambda.sh`"
+  type        = string
+}
+
+variable "lasso_issuer_url" {
+  description = "Lasso's OIDC issuer URL — the authorization server Victoria verifies MCP bearer tokens against."
+  type        = string
+}
+
+variable "resource_server_url" {
+  description = "Victoria's own OAuth resource identifier. Set to this Lambda's Function URL."
   type        = string
 }

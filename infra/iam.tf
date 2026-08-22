@@ -30,7 +30,7 @@ data "aws_iam_policy_document" "lambda_permissions" {
     sid       = "ReadVictoriaSsmParameters"
     effect    = "Allow"
     actions   = ["ssm:GetParameter"]
-    resources = [aws_ssm_parameter.anthropic_api_key.arn, aws_ssm_parameter.mcp_auth_token.arn]
+    resources = [aws_ssm_parameter.anthropic_api_key.arn]
   }
 
   statement {

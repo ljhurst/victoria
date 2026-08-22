@@ -1,8 +1,3 @@
-# The MCP server endpoint (DESIGN §4, §5): a single Lambda Function URL,
-# AuthType NONE at the AWS layer — auth is static_headers, checked in-app by
-# the BearerAuthMiddleware in mcp/server.py, not by IAM/SigV4 (DESIGN §5).
-# No EventBridge trigger in v1 (DESIGN §9 phase 2).
-
 resource "aws_lambda_function" "victoria" {
   function_name = "lj-victoria-mcp"
   role          = aws_iam_role.lambda.arn
@@ -20,7 +15,8 @@ resource "aws_lambda_function" "victoria" {
   environment {
     variables = {
       WIKI_BUCKET                 = aws_s3_bucket.wiki.bucket
-      MCP_AUTH_SSM_PARAM          = aws_ssm_parameter.mcp_auth_token.name
+      LASSO_ISSUER_URL            = var.lasso_issuer_url
+      VICTORIA_RESOURCE_URL       = var.resource_server_url
       ANTHROPIC_API_KEY_SSM_PARAM = aws_ssm_parameter.anthropic_api_key.name
     }
   }

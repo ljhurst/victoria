@@ -1,53 +1,37 @@
-"""MCP transport auth (DESIGN §5).
+import jwt
+from aws_lambda_powertools import Logger
+from jwt import PyJWKClient
+from mcp.server.auth.provider import AccessToken, TokenVerifier
 
-Auth is `static_headers` — a fixed bearer token checked against SSM on every
-request, not OAuth. Deliberately not using the mcp SDK's built-in
-token_verifier/auth machinery: that path is wired for the OAuth Protected
-Resource Metadata flow (it requires an issuer_url and serves
-.well-known/oauth-protected-resource), which is exactly the Authorization
-Server infrastructure static_headers exists to avoid — Victoria has no
-existing identity provider and no multi-tenancy to justify standing one up
-(DESIGN §5). A plain ASGI middleware that checks the header is simpler and
-matches what static_headers actually is.
-"""
-
-import hmac
-
-from aws_lambda_powertools.utilities import parameters
-from starlette.requests import Request
-from starlette.responses import PlainTextResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
+logger = Logger()
 
 
-class BearerAuthMiddleware:
-    """Checks Authorization: Bearer <token> against the SSM-stored static
-    credential on every HTTP request. Not OAuth — see module docstring."""
+class LassoTokenVerifier(TokenVerifier):
+    def __init__(self, *, issuer_url: str, resource_server_url: str) -> None:
+        self._issuer_url = issuer_url
+        self._resource_server_url = resource_server_url
+        self._jwks_client = PyJWKClient(f"{issuer_url.rstrip('/')}/jwks")
 
-    def __init__(self, app: ASGIApp, ssm_param: str) -> None:
-        self.app = app
-        self.ssm_param = ssm_param
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        token = _bearer_token(Request(scope))
-        expected = parameters.get_parameter(self.ssm_param, decrypt=True)
-        if not token or not hmac.compare_digest(token, expected):
-            response = PlainTextResponse(
-                "Unauthorized", status_code=401, headers={"WWW-Authenticate": "Bearer"}
+    async def verify_token(self, token: str) -> AccessToken | None:
+        try:
+            signing_key = self._jwks_client.get_signing_key_from_jwt(token)
+            claims = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["RS256"],
+                issuer=self._issuer_url,
+                audience=self._resource_server_url,
             )
-            await response(scope, receive, send)
-            return
+        except jwt.PyJWTError:
+            logger.exception("LassoTokenVerifier rejected token")
+            return None
 
-        await self.app(scope, receive, send)
-
-
-def _bearer_token(request: Request) -> str | None:
-    header = request.headers.get("authorization", "")
-
-    if not header.lower().startswith("bearer "):
-        return None
-
-    return header[len("bearer ") :].strip()
+        return AccessToken(
+            token=token,
+            client_id=claims["client_id"],
+            scopes=claims.get("scope", "").split(),
+            expires_at=claims.get("exp"),
+            resource=self._resource_server_url,
+            subject=claims.get("sub"),
+            claims=claims,
+        )

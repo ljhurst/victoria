@@ -3,3 +3,11 @@ environment  = "prod"
 project_name = "victoria"
 
 lambda_package_path = "../agent/dist/victoria.zip"
+
+lasso_issuer_url = "https://lasso.example.com"
+
+# Placeholder for the first apply — the real value is this Lambda's own
+# Function URL, which doesn't exist until after that apply. Update this
+# and re-apply once you have it, then register it as a resource in Lasso's
+# src/config/resources.ts.
+resource_server_url = "https://victoria.example.com"
