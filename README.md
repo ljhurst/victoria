@@ -55,16 +55,12 @@ You can connect with the [MCP Inspector](https://modelcontextprotocol.io/docs/20
 npx @modelcontextprotocol/inspector@latest
 ```
 
-You'll need the static secret. Get it with
+Auth is provided by [Lasso](https://github.com/ljhurst/lasso), my self hosted SSO.
 
-```bash
-aws ssm get-parameter --name '/victoria/mcp-auth-token' --with-decryption
-```
-
-Then set the MCP custom headers
+Simply set the Client ID under OAuth Settings and the OAuth dance will take care of the rest
 
 ```text
-Authorization: Bearer <secret>
+mcp-inspector
 ```
 
 You'll see these available tools

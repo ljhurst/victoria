@@ -121,41 +121,42 @@ Three agent operations:
   machine or cheap VPS) reached through a tunnel (Tailscale/Cloudflare). **Out of
   scope for v1** — start with the Claude API only.
 
-## 5. Interaction channel & auth: MCP server for Claude mobile app
+## 5. Interaction channel & auth: MCP server behind Porto, via Lasso
 
-- v1's interactive surface is Victoria acting as a **remote MCP server** that
-  the user's Claude mobile app connects to as a custom connector — the same
-  general pattern as the user's existing wine-fridge MCP server, but a
-  different auth mechanism, chosen deliberately after reading that server's
-  actual implementation.
-- **Auth: `static_headers`** — one of Claude's supported custom-connector auth
-  types (per Anthropic's connector-auth docs, checked directly rather than
-  assumed): a fixed API key/bearer token, entered once when the connector is
-  added in Claude mobile app, sent as a request header on every MCP call.
-  - **Why not the wine-fridge's pattern**: that server uses full OAuth 2.1
-    (`mcp-handler`'s `withMcpAuth`, PKCE, `.well-known/oauth-protected-resource`)
-    with **Supabase Auth as the Authorization Server** — but it makes sense
-    there because that project already runs Supabase Auth for its own
-    multi-user web app, so reusing it for MCP is nearly free. Victoria has no
-    existing identity provider and no multi-tenancy to design for; standing up
-    an Authorization Server (e.g. Cognito) from scratch just to gate one
-    person's traffic would be real infra for no real benefit — against the
-    same cost/complexity principle that's driven every other choice here
-    (§4, §12).
-  - `static_headers` is in beta as of this writing — a small risk noted, not a
-    blocker, given the low cost of switching later on a solo project.
-  - Victoria's Lambda handler checks the incoming bearer token against the
-    SSM-stored value on each request — no OAuth flow, no
-    `.well-known/oauth-protected-resource` endpoint, no Authorization Server
-    to run.
-  - Scope the MCP server credential to this user only — there's no
-    multi-tenant concern to design for.
+- Victoria no longer connects to Claude mobile app directly — it now sits
+  behind **[porto](../../porto/docs/DESIGN.md)**, Luke's single-connector MCP
+  gateway, since Claude Free allows exactly one custom connector and porto is
+  it. Porto calls victoria's MCP endpoint as its own outbound leg, forwarding
+  `tools/call` requests it received from Claude.
+- **Auth: Victoria is an OAuth 2.1 resource server against
+  [lasso](../../lasso/docs/DESIGN.md)** — Luke's self-hosted OIDC/OAuth 2.1
+  authorization server, superseding the originally-planned `static_headers`
+  bearer token described below.
+  - **Why the plan changed**: the original reasoning for `static_headers`
+    assumed standing up an Authorization Server from scratch (e.g. Cognito)
+    wasn't justified for single-user auth. Lasso removed that tradeoff —
+    it's a single shared OIDC provider Luke already runs for porto's own
+    inbound auth, so reusing it for victoria costs nothing beyond a config
+    entry, not a full Authorization Server build.
+  - `agent/src/victoria/mcp/auth.py`'s `LassoTokenVerifier` implements the
+    official MCP Python SDK's `TokenVerifier`: fetches Lasso's JWKS
+    (`PyJWKClient`), verifies each bearer token's signature, `iss` (Lasso's
+    issuer), and `aud` (victoria's own resource indicator) via `PyJWT`. Wired
+    through `AuthSettings` on `MCPServer`, which also auto-serves
+    `.well-known/oauth-protected-resource`.
+  - Victoria itself never talks to porto's `porto-victoria` OAuth client or
+    handles token acquisition — from victoria's side this is a normal
+    resource-server bearer-token check. Porto's own
+    `docs/DESIGN.md` covers how it acquires a victoria-audienced token
+    (authorization_code once, then rotated automatically via
+    `refresh_token`).
 - This closes the earlier gap where an unauthenticated public endpoint holding
   home-inventory and LLC/tax data was a real cost and privacy risk.
-- Secrets (MCP auth credential, Anthropic API key) live in **SSM Parameter
-  Store** (SecureString, KMS-encrypted) — free tier, unlike Secrets Manager's
-  per-secret cost. Fetched via `aws-lambda-powertools`, which caches them for
-  the life of the execution environment.
+- Secrets: the Anthropic API key still lives in **SSM Parameter Store**
+  (SecureString, KMS-encrypted). Auth config (`LASSO_ISSUER_URL`,
+  `VICTORIA_RESOURCE_URL`) is plain Lambda environment variables, set via
+  Terraform — nothing secret to store for victoria's own inbound auth, since
+  JWT verification only needs Lasso's public JWKS.
 
 ## 6. Search — S3 has no native full-text search
 
@@ -443,11 +444,10 @@ victoria/
   summary; splitting is a `consolidate` job), and plain relative markdown links
   (not `[[wiki-link]]` syntax, so any ordinary markdown viewer renders it).
 
-- ~~Exact MCP remote-auth mechanism is unconfirmed~~ — resolved (§5):
-  `static_headers` (a fixed bearer token checked against SSM on each request),
-  not the wine-fridge server's OAuth-via-Supabase pattern, since Victoria has
-  no existing identity provider to reuse and standing one up solely for
-  single-user auth isn't justified.
+- ~~Exact MCP remote-auth mechanism is unconfirmed~~ — resolved (§5): Victoria
+  is a Lasso-backed OAuth 2.1 resource server (JWKS/JWT verification via the
+  MCP Python SDK's `TokenVerifier`), reached through porto rather than
+  connected to directly by Claude mobile app.
 
 Nothing is currently blocking — `infra/`, the read path, `remember`/`consolidate`'s
 conventions, and now `mcp/server.py`'s auth can all proceed.
@@ -479,9 +479,9 @@ conventions, and now `mcp/server.py`'s auth can all proceed.
       verified against moto
 - [x] `core/`: `put_file` internal primitive, `remember` (curation-aware
       write tool), and `consolidate` (hand-rolled tool-calling loop) (§7, §10)
-- [x] `mcp/`: MCP server (tool exposure + `static_headers` bearer-token check
-      against SSM, §5) as a thin adapter over `core/`, wired to a Lambda
-      Function URL via Terraform (`mangum` bridges the ASGI app to Lambda)
+- [x] `mcp/`: MCP server (tool exposure + Lasso-backed JWT/JWKS resource-server
+      auth, §5) as a thin adapter over `core/`, wired to a Lambda Function URL
+      via Terraform (`mangum` bridges the ASGI app to Lambda)
 - [x] `pytest`/`moto` tests for the S3 tools, search index, `remember`,
       `consolidate`, and the auth middleware — 24 tests passing
 - [ ] **Build the Lambda deployment package** — `agent/scripts/build_lambda.sh`
