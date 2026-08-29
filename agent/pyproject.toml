@@ -7,29 +7,28 @@ authors = [
     { name = "Luke Hurst", email = "llclessthanthree@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = [
-    "anthropic>=0.122.0",
-    "aws-lambda-powertools>=3.34.0",
-    "boto3>=1.43.72",
-    "mangum>=0.21.0",
-    "mcp>=2.0.0",
-    "pydantic-settings>=2.15.0",
-    "pyjwt[crypto]>=2.13.0",
-]
 
-[tool.uv.build-backend]
-module-name = "victoria"
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+victoria-core = { workspace = true }
+victoria-mcp = { workspace = true }
 
 [tool.ruff]
 line-length = 100
 target-version = "py313"
 
-[build-system]
-requires = ["uv_build>=0.11.31,<0.12.0"]
-build-backend = "uv_build"
+[tool.ruff.lint.isort]
+known-first-party = ["victoria"]
 
 [dependency-groups]
 dev = [
+    "victoria-core",
+    "victoria-mcp",
     "moto>=5.2.2",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",

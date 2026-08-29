@@ -1,0 +1,24 @@
+[project]
+name = "victoria-mcp"
+version = "0.1.0"
+description = "Victoria's MCP server — the Lambda that Claude connects to"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "victoria-core",
+    "aws-lambda-powertools>=3.34.0",
+    "mangum>=0.21.0",
+    "mcp>=2.0.0",
+    "pyjwt[crypto]>=2.13.0",
+]
+
+[tool.uv.sources]
+victoria-core = { workspace = true }
+
+[tool.uv.build-backend]
+module-name = "victoria"
+namespace = true
+
+[build-system]
+requires = ["uv_build>=0.11.31,<0.12.0"]
+build-backend = "uv_build"

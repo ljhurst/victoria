@@ -1,13 +1,16 @@
+from starlette.applications import Starlette
+
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
 from mcp.server.streamable_http import TransportSecuritySettings
-from starlette.applications import Starlette
-
 from victoria.mcp import handlers
 from victoria.mcp.auth import LassoTokenVerifier
+from victoria.mcp.config import get_mcp_settings
 
 
-def build_app(*, lasso_issuer_url: str, resource_server_url: str) -> Starlette:
+def build_app() -> Starlette:
+    settings = get_mcp_settings()
+
     server = MCPServer(
         name="victoria",
         instructions=(
@@ -17,11 +20,11 @@ def build_app(*, lasso_issuer_url: str, resource_server_url: str) -> Starlette:
             "Use consolidate sparingly, when asked to check the wiki for problems."
         ),
         token_verifier=LassoTokenVerifier(
-            issuer_url=lasso_issuer_url, resource_server_url=resource_server_url
+            issuer_url=settings.lasso_issuer_url, resource_server_url=settings.resource_server_url
         ),
         auth=AuthSettings(
-            issuer_url=lasso_issuer_url,
-            resource_server_url=resource_server_url,
+            issuer_url=settings.lasso_issuer_url,
+            resource_server_url=settings.resource_server_url,
             required_scopes=["victoria:read", "victoria:write"],
         ),
     )

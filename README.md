@@ -22,6 +22,7 @@ A personal knowledge base, inspired by my home.
 - [Repo Structure](#repo-structure)
 - [Connect](#connect)
 - [Requirements](#requirements)
+- [AWS Creds](#aws-creds)
 - [Deployment](#deployment)
 
 ## Features
@@ -37,7 +38,9 @@ See the example [use cases](docs/USE_CASES.md).
 ## Repo structure
 
 - [`docs/`](docs/) - Technical documentation
-- [`agent/`](agent/) — the Python Lambda package (MCP server + wiki logic)
+- [`agent/`](agent/)
+  - [`packages/victoria-core`](agent/packages/victoria-core/) — Wiki logic
+  - [`packages/victoria-mcp`](agent/packages/victoria-mci/) — MCP server
 - [`infra/`](infra/) — Terraform for the AWS resources (S3, Lambda, IAM, SSM)
 - [`seed/`](seed/) — bootstrap content uploaded to the wiki root on first deploy
 
@@ -89,13 +92,7 @@ See the full [design](DESIGN.md) for details.
 - [`awscli`](https://aws.amazon.com/cli/) - Run AWS commands
 - [`terraform`](https://developer.hashicorp.com/terraform/install) - Manage infrastructure
 
-## Deployment
-
-We use Lambda zip + [Terraform](https://developer.hashicorp.com/terraform) to manage infra. First create the Lambda src zip
-
-```bash
-./agent/scripts/build_lambda.sh
-```
+## AWS Creds
 
 Log in via AWS SSO and assume the `victoria-deploy` role
 
@@ -107,6 +104,14 @@ Set the AWS profile
 
 ```bash
 export AWS_PROFILE=victoria-deploy
+```
+
+## Deployment
+
+We use Lambda zip + [Terraform](https://developer.hashicorp.com/terraform) to manage infra. First build the Lambda src zip
+
+```bash
+./agent/scripts/build_lambda.sh
 ```
 
 Then from `infra/`

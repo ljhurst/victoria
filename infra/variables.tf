@@ -19,8 +19,8 @@ variable "bucket_name" {
   default     = "lj-victoria-wiki"
 }
 
-variable "lambda_package_path" {
-  description = "Path to the zipped Lambda deployment package. Run `agent/scripts/build_lambda.sh`"
+variable "mcp_lambda_package_path" {
+  description = "Path to the zipped MCP Lambda package. Run `agent/scripts/build_lambda.sh`"
   type        = string
 }
 
