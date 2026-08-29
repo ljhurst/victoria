@@ -1,6 +1,3 @@
-# Least-privilege IAM role for the Lambda (DESIGN §12): scoped S3 bucket
-# access, SSM read on Victoria's specific parameter paths, CloudWatch Logs.
-
 data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
     effect  = "Allow"

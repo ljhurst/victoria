@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Builds dist/victoria-mcp.zip: the MCP server's third-party dependencies
-# (resolved for Lambda's linux/arm64 runtime via uv, no Docker needed) + the
-# first-party src for victoria-mcp and victoria-core.
+# Builds dist/victoria-<target>.zip for one workspace member: its third-party
+# dependencies (resolved for Lambda's linux/arm64 runtime via uv, no Docker
+# needed) + the first-party src for that member and victoria-core.
 # See Astral's uv + AWS Lambda guide:
 # https://docs.astral.sh/uv/guides/integration/aws-lambda/
+#
+# Usage: build_lambda.sh mcp | viewer
 #
 # Reproducible: every file's mtime is normalized before zipping, and -X
 # strips extra fields (extended timestamps, uid/gid) that would otherwise
@@ -12,14 +14,21 @@
 # to see drift.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+target="${1:-}"
+case "$target" in
+  mcp)    member=victoria-mcp;    src_members=(victoria-core victoria-mcp) ;;
+  viewer) member=victoria-viewer; src_members=(victoria-core victoria-viewer) ;;
+  *) echo "usage: $0 mcp|viewer" >&2; exit 2 ;;
+esac
 
-zip_path="dist/victoria-mcp.zip"
+cd "$(dirname "$0")/../agent"
+
+zip_path="dist/victoria-${target}.zip"
 rm -rf build "$zip_path"
 mkdir -p build/app build/package dist
 
 uv export -q --frozen --no-dev --no-editable --no-emit-workspace \
-  --package victoria-mcp -o build/requirements.txt
+  --package "$member" -o build/requirements.txt
 
 uv pip install -q \
   --no-installer-metadata \
@@ -29,9 +38,9 @@ uv pip install -q \
   --target build/package \
   -r build/requirements.txt
 
-for member in victoria-core victoria-mcp; do
+for m in "${src_members[@]}"; do
   rsync -a --exclude='*.pyc' --exclude='__pycache__' --exclude='*.swp' \
-    "packages/${member}/src/victoria" build/app/
+    "packages/${m}/src/victoria" build/app/
 done
 
 find build -exec touch -t 202001010000.00 {} +

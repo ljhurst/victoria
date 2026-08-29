@@ -3,9 +3,13 @@ check and the viewer's session guard. Signature/`iss`/`aud`/`exp` are all
 verified against Lasso's published JWKS — nothing here needs a secret.
 """
 
+import logging
+
 import jwt
-from jwt import PyJWKClient
+from jwt import PyJWKClient, PyJWKClientError
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 class VerifiedToken(BaseModel):
@@ -33,8 +37,10 @@ class LassoTokenValidator:
                 algorithms=["RS256"],
                 issuer=self._issuer_url,
                 audience=self._audience,
+                leeway=60,
             )
-        except jwt.PyJWTError:
+        except (jwt.PyJWTError, PyJWKClientError) as e:
+            logger.warning("Lasso token rejected: %s: %s", type(e).__name__, e)
             return None
 
         return VerifiedToken(

@@ -20,7 +20,17 @@ variable "bucket_name" {
 }
 
 variable "mcp_lambda_package_path" {
-  description = "Path to the zipped MCP Lambda package. Run `agent/scripts/build_lambda.sh`"
+  description = "Path to the zipped MCP Lambda package. Run `scripts/build_lambda.sh mcp`"
+  type        = string
+}
+
+variable "viewer_lambda_package_path" {
+  description = "Path to the zipped viewer Lambda package. Run `scripts/build_lambda.sh viewer`"
+  type        = string
+}
+
+variable "viewer_base_url" {
+  description = "The viewer Lambda's own Function URL (see the `viewer_url` output). Set after the first apply; must match the redirect URI registered for the `victoria-viewer` client in Lasso."
   type        = string
 }
 
