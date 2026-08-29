@@ -2,9 +2,11 @@ import time
 from unittest.mock import Mock, patch
 
 import jwt
+import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from starlette.testclient import TestClient
 
+from victoria.mcp.config import get_mcp_settings
 from victoria.mcp.server import build_app
 
 ISSUER_URL = "https://lasso.example.com"
@@ -13,8 +15,17 @@ RESOURCE_SERVER_URL = "https://victoria.example.com"
 _private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
 
+@pytest.fixture(autouse=True)
+def _mcp_env(monkeypatch):
+    monkeypatch.setenv("LASSO_ISSUER_URL", ISSUER_URL)
+    monkeypatch.setenv("VICTORIA_RESOURCE_URL", RESOURCE_SERVER_URL)
+    get_mcp_settings.cache_clear()
+    yield
+    get_mcp_settings.cache_clear()
+
+
 def _app():
-    return build_app(lasso_issuer_url=ISSUER_URL, resource_server_url=RESOURCE_SERVER_URL)
+    return build_app()
 
 
 def _token(*, issuer=ISSUER_URL, audience=RESOURCE_SERVER_URL, expires_in=3600, **extra_claims):

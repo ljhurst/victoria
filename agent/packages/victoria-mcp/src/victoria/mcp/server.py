@@ -8,13 +8,8 @@ from victoria.mcp.auth import LassoTokenVerifier
 from victoria.mcp.config import get_mcp_settings
 
 
-def build_app(
-    *, lasso_issuer_url: str | None = None, resource_server_url: str | None = None
-) -> Starlette:
-    if lasso_issuer_url is None or resource_server_url is None:
-        settings = get_mcp_settings()
-        lasso_issuer_url = lasso_issuer_url or settings.lasso_issuer_url
-        resource_server_url = resource_server_url or settings.resource_server_url
+def build_app() -> Starlette:
+    settings = get_mcp_settings()
 
     server = MCPServer(
         name="victoria",
@@ -25,11 +20,11 @@ def build_app(
             "Use consolidate sparingly, when asked to check the wiki for problems."
         ),
         token_verifier=LassoTokenVerifier(
-            issuer_url=lasso_issuer_url, resource_server_url=resource_server_url
+            issuer_url=settings.lasso_issuer_url, resource_server_url=settings.resource_server_url
         ),
         auth=AuthSettings(
-            issuer_url=lasso_issuer_url,
-            resource_server_url=resource_server_url,
+            issuer_url=settings.lasso_issuer_url,
+            resource_server_url=settings.resource_server_url,
             required_scopes=["victoria:read", "victoria:write"],
         ),
     )

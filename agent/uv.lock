@@ -1274,10 +1274,6 @@ wheels = [
 name = "victoria-agent"
 version = "0.1.0"
 source = { virtual = "." }
-dependencies = [
-    { name = "victoria-core" },
-    { name = "victoria-mcp" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -1285,13 +1281,11 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "victoria-core" },
+    { name = "victoria-mcp" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "victoria-core", editable = "packages/victoria-core" },
-    { name = "victoria-mcp", editable = "packages/victoria-mcp" },
-]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1299,6 +1293,8 @@ dev = [
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.3" },
+    { name = "victoria-core", editable = "packages/victoria-core" },
+    { name = "victoria-mcp", editable = "packages/victoria-mcp" },
 ]
 
 [[package]]
