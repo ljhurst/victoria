@@ -410,7 +410,9 @@ victoria/
     index.md                 # empty table-of-contents template
     log.md                   # empty audit-log template
   infra/                     # Terraform
-    main.tf, lambda.tf, viewer.tf, s3.tf, iam.tf, ssm.tf, variables.tf, outputs.tf
+    main.tf, backend.tf, s3.tf, iam.tf   # shared: provider, state, wiki bucket, lambda trust
+    mcp.tf, viewer.tf                    # one file per Lambda: role, policy, function, URL, log group, its SSM param
+    variables.tf, outputs.tf
     # EventBridge is phase 2 (§9) — not applied in v1
   scripts/
     build_lambda.sh          # build_lambda.sh mcp | viewer  -> agent/dist/victoria-<t>.zip

@@ -1,3 +1,17 @@
+# Everything for the wiki viewer Lambda — a read-only browser for the wiki,
+# behind Lasso OAuth. Read-only on the wiki bucket, its own session secret,
+# role and log group. Mirrors mcp.tf.
+
+resource "aws_ssm_parameter" "viewer_session_secret" {
+  name  = "/victoria/viewer-session-secret"
+  type  = "SecureString"
+  value = "REPLACE_ME_MANUALLY"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
 resource "aws_iam_role" "viewer_lambda" {
   name               = "victoria-viewer-lambda"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
