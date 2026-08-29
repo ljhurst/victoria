@@ -40,7 +40,8 @@ See the example [use cases](docs/USE_CASES.md).
 - [`docs/`](docs/) - Technical documentation
 - [`agent/`](agent/)
   - [`packages/victoria-core`](agent/packages/victoria-core/) — Wiki logic
-  - [`packages/victoria-mcp`](agent/packages/victoria-mci/) — MCP server
+  - [`packages/victoria-mcp`](agent/packages/victoria-mcp/) — MCP server
+  - [`packages/victoria-viewer`](agent/packages/victoria-viewer/) — read-only wiki viewer
 - [`infra/`](infra/) — Terraform for the AWS resources (S3, Lambda, IAM, SSM)
 - [`seed/`](seed/) — bootstrap content uploaded to the wiki root on first deploy
 
@@ -73,6 +74,12 @@ You'll see these available tools
 - `search_wiki`: Retrieve relevant snippets
 - `remember`: Store a fact in the knowledge base
 - `consolidate`: Combine, split, and prune memories
+
+The Viewer is a web app that lives at
+
+```text
+https://s4wndhtrbjoflmoqeb4zvvmeim0cyodv.lambda-url.us-east-1.on.aws/
+```
 
 ## Architecture
 
@@ -108,10 +115,11 @@ export AWS_PROFILE=victoria-deploy
 
 ## Deployment
 
-We use Lambda zip + [Terraform](https://developer.hashicorp.com/terraform) to manage infra. First build the Lambda src zip
+We use Lambda zip + [Terraform](https://developer.hashicorp.com/terraform) to manage infra. First build the Lambda src zips
 
 ```bash
-./agent/scripts/build_lambda.sh
+./scripts/build_lambda.sh mcp
+./scripts/build_lambda.sh viewer
 ```
 
 Then from `infra/`

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>No access · Victoria</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/2.1.1/pico.min.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Signed in, but no access</h1>
+    <p>
+      Your Lasso login worked, but the token came back without the
+      <code>victoria:read</code> scope — your account is missing that role.
+      Ask for it to be granted, then try again.
+    </p>
+    <p>
+      (If you're running the viewer locally and just granted the role, a clock
+      more than a minute off between this machine and Lasso can also land you
+      here — check your system time.)
+    </p>
+    <p><a href="/login" role="button">Try again</a></p>
+  </main>
+</body>
+</html>

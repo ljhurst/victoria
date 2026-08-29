@@ -1,0 +1,52 @@
+{% import "_macros.html" as ui %}<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ page.title }} · Victoria{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/2.1.1/pico.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.9.0/github-markdown-light.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.2/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.10/htmx.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.2/highlight.min.js"></script>
+  <style>
+    body { margin: 0; }
+    .layout { display: grid; grid-template-columns: 18rem 1fr; min-height: 100vh; }
+    .sidebar { border-right: 1px solid var(--pico-muted-border-color); padding: 1rem; overflow-y: auto; }
+    .sidebar h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pico-muted-color); margin: 0 0 0.5rem; }
+    .sidebar ul { display: block; list-style: none; margin: 0; padding-left: 0.75rem; }
+    .sidebar > ul { padding-left: 0; }
+    .sidebar li { display: list-item; margin: 0.15rem 0; }
+    .sidebar a { display: block; padding: 0.1rem 0.3rem; border-radius: 4px; text-decoration: none; font-size: 0.9rem; }
+    .sidebar a.active { background: var(--pico-primary-background); color: var(--pico-primary-inverse); }
+    .sidebar .dir { color: var(--pico-muted-color); font-size: 0.9rem; margin: 0.3rem 0 0.1rem; }
+    .content { padding: 1.5rem 2rem; min-width: 0; }
+    .topbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .topbar .spacer { flex: 1; }
+    .topbar a[role="button"], .topbar button { margin: 0; padding: 0.25rem 0.6rem; width: auto; font-size: 0.9rem; }
+    .markdown-body { max-width: 54rem; }
+    @media (max-width: 48rem) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--pico-muted-border-color); max-height: 14rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>Victoria</h2>
+      {{ ui.tree_list(tree, current) }}
+    </aside>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script>
+    function highlightPage() {
+      document.querySelectorAll('#page pre code').forEach((el) => window.hljs && window.hljs.highlightElement(el));
+    }
+    document.addEventListener('DOMContentLoaded', highlightPage);
+    document.body.addEventListener('htmx:afterSwap', highlightPage);
+  </script>
+</body>
+</html>

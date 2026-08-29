@@ -14,12 +14,14 @@ from .models import ListFilesResult, PageContent, PageVersion, RawContent
 
 
 def list_files(bucket: str, prefix: str) -> ListFilesResult:
-    paginator = _client().get_paginator("list_objects_v2")
-    keys: list[str] = []
+    return ListFilesResult(paths=_list_keys(bucket, prefix))
 
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-        for obj in page.get("Contents", []):
-            keys.append(obj["Key"])
+
+def list_pages(bucket: str) -> ListFilesResult:
+    """Every markdown page in the wiki. Filters out the binary search.db
+    sidecar first — it isn't a WikiPath, so building the result without
+    dropping it would fail validation."""
+    keys = [key for key in _list_keys(bucket, "") if key.endswith(".md")]
 
     return ListFilesResult(paths=keys)
 
@@ -94,6 +96,17 @@ def put_bytes(
         raise
 
     return resp["ETag"]
+
+
+def _list_keys(bucket: str, prefix: str) -> list[str]:
+    paginator = _client().get_paginator("list_objects_v2")
+    keys: list[str] = []
+
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            keys.append(obj["Key"])
+
+    return keys
 
 
 @lru_cache(maxsize=1)

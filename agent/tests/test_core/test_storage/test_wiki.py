@@ -40,6 +40,14 @@ def test_list_files_scoped_to_prefix(s3_bucket):
     ]
 
 
+def test_list_pages_excludes_search_db(s3_bucket):
+    wiki.put_file(BUCKET, "index.md", "a")
+    wiki.put_file(BUCKET, "wiki/house/tools.md", "b")
+    wiki.put_bytes(BUCKET, "search.db", b"\x00binary")
+
+    assert sorted(wiki.list_pages(BUCKET).paths) == ["index.md", "wiki/house/tools.md"]
+
+
 def test_get_file_with_etag_changes_on_write(s3_bucket):
     wiki.put_file(BUCKET, "wiki/house/tools.md", "v1")
     etag1 = wiki.get_file_with_etag(BUCKET, "wiki/house/tools.md").etag

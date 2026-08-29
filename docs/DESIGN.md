@@ -384,8 +384,7 @@ subtree:
 - `victoria-mcp` is a thin adapter: it registers tools, translates MCP
   tool-call requests into `victoria-core` function calls, and formats the
   results back as MCP responses. Nothing in it is itself business logic.
-
-A read-only web viewer (`victoria-viewer`) is a planned third member.
+- `victoria-viewer` is the read-only web UI (§17).
 
 The core/adapter split is for testability and clarity, not — per §10 — a
 mechanism for cheaply swapping the adapter to another language later; a real
@@ -411,14 +410,16 @@ victoria/
     index.md                 # empty table-of-contents template
     log.md                   # empty audit-log template
   infra/                     # Terraform
-    main.tf, lambda.tf, s3.tf, iam.tf, ssm.tf, variables.tf, outputs.tf
+    main.tf, backend.tf, s3.tf, iam.tf   # shared: provider, state, wiki bucket, lambda trust
+    mcp.tf, viewer.tf                    # one file per Lambda: role, policy, function, URL, log group, its SSM param
+    variables.tf, outputs.tf
     # EventBridge is phase 2 (§9) — not applied in v1
+  scripts/
+    build_lambda.sh          # build_lambda.sh mcp | viewer  -> agent/dist/victoria-<t>.zip
+    run_viewer.sh            # run the viewer locally against the real wiki
   agent/                     # uv workspace
     pyproject.toml           # workspace root (package = false); ruff + dev deps
     uv.lock                  # one lock for the whole workspace
-    scripts/
-      build_lambda.sh        # -> dist/victoria-mcp.zip
-      run_mcp.sh             # run the MCP server locally against the real wiki
     packages/
       victoria-core/src/victoria/core/
         config.py               # cross-cutting settings, stays at core/ root
@@ -434,9 +435,17 @@ victoria/
         mcp/server.py           # MCP server setup, tool registration, remote auth
         mcp/handlers.py         # MCP tool-call requests -> core/ calls -> MCP responses
         lambda_handler.py       # Lambda entrypoint: MCP HTTP events -> mcp/server
+      victoria-viewer/src/victoria/viewer/
+        app.py                  # Starlette routes + session middleware
+        oauth.py                # browser-side Lasso authorization-code + PKCE
+        render.py               # frontmatter strip + markdown render + link rewrite
+        nav.py                  # flat S3 key list -> sidebar tree
+        lambda_handler.py       # Lambda entrypoint (Mangum)
+        templates/              # Jinja: base / browse / _page / _macros
     tests/                       # mirrors the packages 1:1
       test_core/{test_storage,test_integrations,test_operations}/
       test_mcp/
+      test_viewer/
   .pre-commit-config.yaml
 ```
 
@@ -492,16 +501,49 @@ conventions, and now `mcp/server.py`'s auth can all proceed.
       via Terraform (`mangum` bridges the ASGI app to Lambda)
 - [x] `pytest`/`moto` tests for the S3 tools, search index, `remember`,
       `consolidate`, and the auth middleware — 24 tests passing
-- [ ] **Build the Lambda deployment package** — `agent/scripts/build_lambda.sh`
+- [ ] **Build the Lambda deployment package** — `scripts/build_lambda.sh`
       wraps Astral's uv + AWS Lambda recipe to resolve native-dependency
       packages (`pydantic-core`, `cryptography`) for Lambda's linux/arm64
       runtime from a macOS dev machine, no Docker needed; run it, then
       `terraform apply`, set the two SSM secret values, and add Victoria as
       a custom connector in Claude mobile app
-- [ ] (Later) read-only wiki viewer as a `victoria-viewer` workspace member
-      + its own Lambda — a browser to follow along with what the agent writes
+- [x] Read-only wiki viewer (§17): `victoria-viewer` workspace member + its
+      own Lambda in `infra/viewer.tf`. Still to do: register the
+      `victoria-viewer` client + grant your user `victoria:read` in the lasso
+      repo, set the session-secret SSM value, and the two-step
+      `viewer_base_url` apply
 - [ ] (Phase 2) `infra/`: EventBridge schedule for the periodic consolidate job (§9)
 - [ ] (Later) design file/image ingestion pipeline
 - [ ] (Later) if read-tool cold start is actually noticeable in daily use,
       revisit §10 — options are SnapStart (~$2–4/mo, no rewrite) or a native
       Go/Rust reimplementation of the read tools (free to run, real rewrite)
+
+## 17. Wiki viewer
+
+A read-only web UI so a human can watch what `remember`/`consolidate` write —
+a file browser and markdown renderer over the same S3 wiki, no editing.
+
+- **Its own Lambda + Function URL**, not a route on the MCP server. The uv
+  workspace (§14) lets the MCP server and the viewer build separate zips
+  (`build_lambda.sh mcp` / `viewer`), each carrying only its own dependency
+  subtree over the shared `victoria-core`. Independent deploys; the viewer
+  role is read-only S3 (no `PutObject`).
+- **The viewer is both a Lasso OAuth *client* and its own resource server.**
+  The MCP server only ever verifies bearer tokens it's handed; the viewer
+  runs the browser authorization-code + PKCE flow itself (`victoria-viewer`
+  client, public/PKCE, `openid victoria:read`), then verifies the returned
+  token per request with the shared `core/auth.py`. It has its **own**
+  resource indicator in Lasso (`Victoria Viewer`, keyed by the viewer's
+  Function URL, `victoria:read` only) rather than borrowing the MCP server's
+  — so a leaked viewer session token can't be replayed against the MCP
+  endpoint. The token lives in a signed session cookie. Its Function URL is
+  `authorization_type = NONE` because the app does its own check — same
+  pattern as the MCP Lambda.
+- **Stack**: Starlette + Jinja + htmx, `markdown-it-py` for rendering,
+  Pico.css + github-markdown-css + highlight.js from CDN. htmx swaps the page
+  pane on navigation and on an explicit refresh button; there is no polling.
+- **Two-step first apply**: the viewer's own Function URL isn't known until
+  the resource exists and feeds both `VIEWER_BASE_URL` and the Lasso redirect
+  URI, so apply once with `viewer_base_url = ""`, then set it from the
+  `viewer_url` output and apply again — the same dance `resource_server_url`
+  already needs.

@@ -1,0 +1,14 @@
+<div class="topbar">
+  <code>{{ page.path }}</code>
+  <span class="spacer"></span>
+  <button type="button"
+          title="Refresh this page"
+          hx-get="/browse/{{ page.path }}"
+          hx-target="#page"
+          hx-swap="innerHTML">&#8635;</button>
+  <a href="/raw/{{ page.path }}" role="button" class="secondary outline" target="_blank">Raw</a>
+  <a href="/logout" role="button" class="secondary outline">Log out</a>
+</div>
+<article class="markdown-body">
+  {{ page.html|safe }}
+</article>

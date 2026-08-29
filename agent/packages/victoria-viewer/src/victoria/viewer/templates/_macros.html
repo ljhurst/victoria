@@ -1,0 +1,19 @@
+{% macro tree_list(nodes, current) %}
+<ul>
+  {% for node in nodes %}
+    <li>
+      {% if node.path %}
+        <a href="/browse/{{ node.path }}"
+           hx-get="/browse/{{ node.path }}"
+           hx-target="#page"
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           class="{{ 'active' if node.path == current else '' }}">{{ node.name }}</a>
+      {% else %}
+        <div class="dir">{{ node.name }}/</div>
+      {% endif %}
+      {% if node.children %}{{ tree_list(node.children, current) }}{% endif %}
+    </li>
+  {% endfor %}
+</ul>
+{% endmacro %}

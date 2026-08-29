@@ -17,6 +17,7 @@ members = ["packages/*"]
 [tool.uv.sources]
 victoria-core = { workspace = true }
 victoria-mcp = { workspace = true }
+victoria-viewer = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -29,6 +30,7 @@ known-first-party = ["victoria"]
 dev = [
     "victoria-core",
     "victoria-mcp",
+    "victoria-viewer",
     "moto>=5.2.2",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
