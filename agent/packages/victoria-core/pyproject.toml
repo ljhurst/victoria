@@ -1,0 +1,22 @@
+[project]
+name = "victoria-core"
+version = "0.1.0"
+description = "Victoria's shared core — S3 wiki storage, search index, agent operations, Lasso token verification"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.122.0",
+    "aws-lambda-powertools>=3.34.0",
+    "boto3>=1.43.72",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.15.0",
+    "pyjwt[crypto]>=2.13.0",
+]
+
+[tool.uv.build-backend]
+module-name = "victoria.core"
+namespace = true
+
+[build-system]
+requires = ["uv_build>=0.11.31,<0.12.0"]
+build-backend = "uv_build"

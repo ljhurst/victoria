@@ -1,13 +1,21 @@
+from starlette.applications import Starlette
+
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
 from mcp.server.streamable_http import TransportSecuritySettings
-from starlette.applications import Starlette
-
 from victoria.mcp import handlers
 from victoria.mcp.auth import LassoTokenVerifier
+from victoria.mcp.config import get_mcp_settings
 
 
-def build_app(*, lasso_issuer_url: str, resource_server_url: str) -> Starlette:
+def build_app(
+    *, lasso_issuer_url: str | None = None, resource_server_url: str | None = None
+) -> Starlette:
+    if lasso_issuer_url is None or resource_server_url is None:
+        settings = get_mcp_settings()
+        lasso_issuer_url = lasso_issuer_url or settings.lasso_issuer_url
+        resource_server_url = resource_server_url or settings.resource_server_url
+
     server = MCPServer(
         name="victoria",
         instructions=(

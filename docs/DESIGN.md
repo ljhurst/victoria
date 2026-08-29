@@ -374,18 +374,27 @@ build here; keeping this section only as a note of what was dropped and why.
 
 ## 14. Repo layout
 
-`core/` holds all business logic and has no MCP-specific types or imports —
-it's plain Python functions over S3/SQLite/Anthropic, independently testable
-on its own. `mcp/` is a thin adapter: it registers tools, translates MCP
-tool-call requests into `core/` function calls, and formats the results back
-as MCP responses. Nothing in `mcp/` is itself business logic. This split is
-for testability and clarity, not — per §10 — a mechanism for cheaply swapping
-`mcp/` to another language later; a real future rewrite would split along
-LLM-calling vs. not, which cuts across this boundary rather than along it.
+`agent/` is a **uv workspace** with members under a shared `victoria.*`
+namespace, so each Lambda builds a zip carrying only its own dependency
+subtree:
 
-Within `core/`, three subpackages replace what was a flat file list once it
-grew past a couple of files — grouped by role, not just by "everything
-core":
+- `victoria-core` holds all business logic and has no MCP-specific types or
+  imports — plain Python over S3/SQLite/Anthropic, plus Lasso token
+  verification (`auth.py`), independently testable on its own.
+- `victoria-mcp` is a thin adapter: it registers tools, translates MCP
+  tool-call requests into `victoria-core` function calls, and formats the
+  results back as MCP responses. Nothing in it is itself business logic.
+
+A read-only web viewer (`victoria-viewer`) is a planned third member.
+
+The core/adapter split is for testability and clarity, not — per §10 — a
+mechanism for cheaply swapping the adapter to another language later; a real
+future rewrite would split along LLM-calling vs. not, which cuts across this
+boundary rather than along it.
+
+Within `victoria-core`, three subpackages replace what was a flat file list
+once it grew past a couple of files — grouped by role, not just by
+"everything core":
 - `storage/` — the persistence layer (S3 + the FTS5 sidecar)
 - `integrations/` — external non-AWS APIs (currently just Anthropic; named
   for room to grow, not because a second integration is expected)
@@ -404,30 +413,29 @@ victoria/
   infra/                     # Terraform
     main.tf, lambda.tf, s3.tf, iam.tf, ssm.tf, variables.tf, outputs.tf
     # EventBridge is phase 2 (§9) — not applied in v1
-  agent/                     # Python package (uv-managed)
-    pyproject.toml
-    uv.lock
-    src/victoria/
-      core/                       # business logic — no MCP types/imports
-        config.py                 # cross-cutting settings, stays at core/ root
+  agent/                     # uv workspace
+    pyproject.toml           # workspace root (package = false); ruff + dev deps
+    uv.lock                  # one lock for the whole workspace
+    scripts/
+      build_lambda.sh        # -> dist/victoria-mcp.zip
+      run_mcp.sh             # run the MCP server locally against the real wiki
+    packages/
+      victoria-core/src/victoria/core/
+        config.py               # cross-cutting settings, stays at core/ root
+        auth.py                 # Lasso JWT verification
         storage/
-          wiki.py                 # list_files, get_file, put_file primitives (S3)
-          search_index.py         # SQLite/FTS5 sidecar management
-        integrations/
-          anthropic_client.py     # Anthropic SDK wrapper, model tiering (Haiku/Sonnet)
+          wiki.py               # list_files, list_pages, get_file, put_file (S3)
+          search_index.py       # SQLite/FTS5 sidecar management
+        integrations/anthropic_client.py   # Anthropic SDK wrapper, model tiering
         operations/
-          remember.py             # remember() curation logic (§7)
-          consolidate.py          # consolidate() hand-rolled tool-calling loop (§10)
-      mcp/                        # MCP protocol boundary only — thin adapter
-        server.py                 # MCP server setup, tool registration, remote auth
-        handlers.py               # MCP tool-call requests -> core/ calls -> MCP responses
-      lambda_handler.py           # Lambda entrypoint: MCP HTTP events -> mcp/server
-                                   # (phase 2: also routes EventBridge -> core/operations/consolidate.consolidate)
-    tests/                        # mirrors src/victoria/ 1:1
-      test_core/
-        test_storage/
-        test_integrations/
-        test_operations/
+          remember.py           # remember() curation logic (§7)
+          consolidate.py        # consolidate() hand-rolled tool-calling loop (§10)
+      victoria-mcp/src/victoria/
+        mcp/server.py           # MCP server setup, tool registration, remote auth
+        mcp/handlers.py         # MCP tool-call requests -> core/ calls -> MCP responses
+        lambda_handler.py       # Lambda entrypoint: MCP HTTP events -> mcp/server
+    tests/                       # mirrors the packages 1:1
+      test_core/{test_storage,test_integrations,test_operations}/
       test_mcp/
   .pre-commit-config.yaml
 ```
@@ -490,6 +498,8 @@ conventions, and now `mcp/server.py`'s auth can all proceed.
       runtime from a macOS dev machine, no Docker needed; run it, then
       `terraform apply`, set the two SSM secret values, and add Victoria as
       a custom connector in Claude mobile app
+- [ ] (Later) read-only wiki viewer as a `victoria-viewer` workspace member
+      + its own Lambda — a browser to follow along with what the agent writes
 - [ ] (Phase 2) `infra/`: EventBridge schedule for the periodic consolidate job (§9)
 - [ ] (Later) design file/image ingestion pipeline
 - [ ] (Later) if read-tool cold start is actually noticeable in daily use,

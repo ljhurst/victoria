@@ -35,7 +35,9 @@ def _patch_jwks():
     key returned is always this module's test key, so signature checks
     still run for real against tokens signed with it."""
     signing_key = Mock(key=_private_key.public_key())
-    return patch("victoria.mcp.auth.PyJWKClient.get_signing_key_from_jwt", return_value=signing_key)
+    return patch(
+        "victoria.core.auth.PyJWKClient.get_signing_key_from_jwt", return_value=signing_key
+    )
 
 
 def test_rejects_missing_bearer_token():

@@ -2,8 +2,8 @@ resource "aws_lambda_function" "victoria" {
   function_name = "lj-victoria-mcp"
   role          = aws_iam_role.lambda.arn
 
-  filename         = var.lambda_package_path
-  source_code_hash = filebase64sha256(var.lambda_package_path)
+  filename         = var.mcp_lambda_package_path
+  source_code_hash = filebase64sha256(var.mcp_lambda_package_path)
 
   handler       = "victoria.lambda_handler.handler"
   runtime       = "python3.13"
