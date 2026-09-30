@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, StringConstraints
 WikiPath = Annotated[
     str,
     StringConstraints(
-        pattern=r"^(CONVENTIONS\.md|index\.md|log\.md|wiki/(house|business)/.+\.md)$"
+        pattern=r"^(CONVENTIONS\.md|index\.md|log\.md|wiki/[a-z0-9][a-z0-9-]*/.+\.md)$"
     ),
     Field(description="A wiki page's S3 key, e.g. 'wiki/house/plants.md' or 'index.md'."),
 ]

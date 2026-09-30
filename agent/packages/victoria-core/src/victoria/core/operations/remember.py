@@ -15,7 +15,7 @@ from victoria.core.integrations import anthropic_client
 from victoria.core.operations import log
 from victoria.core.operations.models import FileNoteDecision, PageAction, RememberResult
 from victoria.core.storage import search_index, wiki
-from victoria.core.storage.models import IndexEntry, PageVersion, WikiPath
+from victoria.core.storage.models import IndexEntry, PageContent, PageVersion, WikiPath
 
 _FILE_NOTE_TOOL = {
     "name": "file_note",
@@ -26,8 +26,8 @@ _FILE_NOTE_TOOL = {
             "page_path": {
                 "type": "string",
                 "description": (
-                    "Full S3 key for the page, e.g. 'wiki/house/plants.md'. "
-                    "Must start with 'wiki/house/' or 'wiki/business/'."
+                    "Full S3 key for the page, 'wiki/<domain>/<category>.md', "
+                    "e.g. 'wiki/house/plants.md'."
                 ),
             },
             # Values here must stay in sync with PageAction (core/operations/models.py).
@@ -67,6 +67,12 @@ complete new content, following these conventions exactly:
 
 {conventions}
 
+The wiki's existing domains are: {domains}. A domain is one broad area of \
+life. Use an existing domain (wiki/<domain>/...) when the note is about that \
+area. If the note is about a different area of life (vehicles or travel, \
+say), start a new domain rather than stretching an existing one to cover it, \
+with a short lowercase name, hyphenated if it needs more than one word.
+
 Call file_note with your decision. full_content must be the ENTIRE page \
 content, not just the new part — merge the new note into the existing page \
 content if one was provided below, preserving everything still true."""
@@ -77,14 +83,24 @@ def _search_terms(text: str) -> str:
     return " OR ".join(words[:12]) or text
 
 
-def _domain_heading(page_path: str) -> str:
-    return "## House" if page_path.startswith("wiki/house/") else "## Business"
+def _domain_headings(index_md: str) -> dict[str, str]:
+    headings = re.findall(r"^## (.+?)\s*$", index_md, flags=re.MULTILINE)
+    return {_domain_slug(heading): f"## {heading}" for heading in headings}
+
+
+def _domain_slug(heading: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")
+
+
+def _domain_heading(index_md: str, page_path: str) -> str:
+    domain = page_path.split("/")[1]
+    return _domain_headings(index_md).get(domain, f"## {domain.replace('-', ' ').title()}")
 
 
 def _ensure_linked(index_md: str, page_path: str, title: str) -> str:
     if f"({page_path})" in index_md:
         return index_md
-    heading = _domain_heading(page_path)
+    heading = _domain_heading(index_md, page_path)
     link_line = f"- [{title}]({page_path})"
     placeholder = "_(no pages yet — created by `remember` as topics come up)_"
 
@@ -121,7 +137,11 @@ def _related_pages(
 
 
 def _decide(
-    client: anthropic.Anthropic, conventions: str, related_pages: list[PageVersion], text: str
+    client: anthropic.Anthropic,
+    conventions: str,
+    domains: list[str],
+    related_pages: list[PageContent],
+    text: str,
 ) -> FileNoteDecision:
     related_block = (
         "\n\n".join(f"--- existing page: {p.path} ---\n{p.content}" for p in related_pages)
@@ -133,7 +153,9 @@ def _decide(
     return anthropic_client.call_forced_tool(
         client,
         model=anthropic_client.HAIKU_MODEL,
-        system=_SYSTEM_TEMPLATE.format(conventions=conventions),
+        system=_SYSTEM_TEMPLATE.format(
+            conventions=conventions, domains=", ".join(domains) or "(none yet)"
+        ),
         user_message=user_message,
         tool=_FILE_NOTE_TOOL,
         response_model=FileNoteDecision,
@@ -167,11 +189,12 @@ def _link_in_index(bucket: str, index_key: WikiPath, decision: FileNoteDecision)
 def remember(settings: CoreSettings, api_key: str, text: str) -> RememberResult:
     bucket = settings.wiki_bucket
     conventions = wiki.get_file(bucket, settings.wiki_files.conventions).content
+    domains = list(_domain_headings(wiki.get_file(bucket, settings.wiki_files.index).content))
     client = anthropic_client.get_client(api_key)
 
     with search_index.open_session(bucket, settings.search_index.db_key) as index:
         related_pages = _related_pages(bucket, index, text)
-        decision = _decide(client, conventions, related_pages, text)
+        decision = _decide(client, conventions, domains, related_pages, text)
 
         existing_etag = next((p.etag for p in related_pages if p.path == decision.page_path), None)
         if existing_etag is None and wiki.file_exists(bucket, decision.page_path):

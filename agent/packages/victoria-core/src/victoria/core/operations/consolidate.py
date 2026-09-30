@@ -68,6 +68,8 @@ _SYSTEM_TEMPLATE = """You are Victoria's consolidation pass. Review the wiki for
 - contradictions between pages
 - stale claims (dated information that's likely out of date)
 - orphan pages (not linked from index.md)
+- domains (the top-level directories under wiki/) that look like
+  near-duplicates covering the same area — report these, don't merge them
 - category pages that have grown large enough to be worth splitting into a
   directory, per the Splitting section of CONVENTIONS.md
 

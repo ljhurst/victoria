@@ -23,6 +23,15 @@ wiki/
     filings.md
 ```
 
+Each top-level directory under `wiki/` is a **domain**, and each domain has a
+matching `##` section in `index.md` (a `home-office/` directory is listed
+under `## Home Office`). A domain is one broad area of life. File into an
+existing domain when the note is about that area; when it's about a
+different area (vehicles or travel, say), start a new domain rather than
+stretching an existing one to cover it. Name it short and lowercase
+(hyphenated if it's more than one word), and don't split one area into
+several overlapping domains.
+
 Within a category page, separate entities with `##` headings:
 
 ```markdown

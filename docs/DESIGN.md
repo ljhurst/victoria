@@ -68,9 +68,12 @@ appropriate at the expected scale (low hundreds of pages).
 
 Structure:
 - `raw/` — source documents, untouched (text notes/messages only in v1 — see §8)
-- `wiki/` — LLM-maintained markdown pages, split into two sections:
-  - `wiki/house/`
-  - `wiki/business/`
+- `wiki/` — LLM-maintained markdown pages, split into one directory per
+  domain (seeded with `wiki/house/` and `wiki/business/`). The set of domains
+  is open: `index.md`'s `##` headings are the list, `remember` is shown it and
+  told to reuse an existing domain unless a note is clearly unrelated to all
+  of them, and `consolidate` flags near-duplicate domains. Nothing in code
+  enforces a fixed list — adding a domain is a wiki edit, not a deploy.
 - `index.md` — table of contents / catalog of wiki pages
 - `log.md` — append-only audit trail of what the agent did and when
 - `search.db` — SQLite/FTS5 sidecar full-text index (see §6)
@@ -222,7 +225,7 @@ All operate against the S3 wiki bucket, but the read/write split matters (§2):
   validates whatever's returned against it, rather than falling back to its
   generic `{"result": ...}` wrapper for bare types. File paths are a
   `WikiPath` type (`Annotated[str, StringConstraints(pattern=...)]`)
-  validated against this section's own `wiki/(house|business)/**/*.md` (or
+  validated against this section's own `wiki/<domain>/**/*.md` (or
   root-file) convention — enforced, not just documented. No shared
   `results:` envelope across tools: each tool's fields are already
   distinctly named, and success/failure is MCP's own `CallToolResult`

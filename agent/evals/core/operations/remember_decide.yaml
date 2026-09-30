@@ -1,0 +1,64 @@
+---
+cases:
+  - name: new_domain_for_unrelated_topic
+    inputs:
+      text: >-
+        Annual physical with Dr. Okafor on 2026-09-12: cholesterol 190,
+        next checkup due September 2027.
+      domains: [house, business]
+    evaluators:
+      - Contains: {value: {action: create}}
+      - NewDomain
+      - ContentIncludes: [Okafor, "190", "2027"]
+
+  - name: new_page_in_existing_domain
+    # search surfaced an unrelated page in the right domain — the note
+    # shouldn't be jammed into it just because it's the only candidate
+    inputs:
+      text: Planted three hydrangeas along the parking strip in May 2026.
+      domains: [house, business]
+      related_pages:
+        - path: wiki/house/tools.md
+          content: |
+            ---
+            title: Tools
+            tags: [garage, hardware]
+            last-updated: 2026-08-16
+            ---
+
+            ## Cordless drill
+
+            Bought 2024, Ryobi 18V. Kept in the garage, top shelf.
+    evaluators:
+      - Contains: {value: {action: create}}
+      - InDomain: house
+      - ContentIncludes: [hydrangea, parking strip]
+
+  - name: update_existing_page
+    inputs:
+      text: >-
+        Worked 3.5 hours on the Henderson bookkeeping contract on
+        2026-09-28.
+      domains: [house, business]
+      related_pages:
+        - path: wiki/business/hours.md
+          content: |
+            ---
+            title: Hours
+            tags: [time-tracking, contracts]
+            last-updated: 2026-09-22
+            ---
+
+            ## Henderson bookkeeping
+
+            - 2026-09-21: 2 hours
+
+            ## Alvarez website
+
+            - 2026-09-22: 4 hours
+    evaluators:
+      - Contains:
+          value: {action: update, page_path: wiki/business/hours.md}
+      # the existing entries must survive the merge, not just the new one appear
+      - ContentIncludes:
+          ["2026-09-21", "2026-09-22", Alvarez, "2026-09-28", "3.5"]

@@ -24,6 +24,7 @@ A personal knowledge base, inspired by my home.
 - [Requirements](#requirements)
 - [AWS Creds](#aws-creds)
 - [Deployment](#deployment)
+- [Evals](#evals)
 
 ## Features
 
@@ -42,6 +43,7 @@ See the example [use cases](docs/USE_CASES.md).
   - [`packages/victoria-core`](agent/packages/victoria-core/) — Wiki logic
   - [`packages/victoria-mcp`](agent/packages/victoria-mcp/) — MCP server
   - [`packages/victoria-viewer`](agent/packages/victoria-viewer/) — read-only wiki viewer
+  - [`evals/`](agent/evals/) — on-demand evals against the real model ([Evals](#evals))
 - [`infra/`](infra/) — Terraform for the AWS resources (S3, Lambda, IAM, SSM)
 - [`seed/`](seed/) — bootstrap content uploaded to the wiki root on first deploy
 
@@ -133,3 +135,27 @@ And
 ```bash
 terraform apply
 ```
+
+## Evals
+
+Evals call the real Anthropic API, so they're kept out of the pytest suite
+and run on demand. They use [Pydantic Evals](https://ai.pydantic.dev/evals/):
+each eval is a script plus a YAML file of cases next to it, and each case
+declares the checks it expects. The API key is read from `ANTHROPIC_API_KEY`.
+
+From `agent/`
+
+```bash
+uv run --group evals python evals/core/operations/remember_decide.py
+```
+
+Every case runs 3 times by default, since the model's answers vary between
+runs. To run one case once while iterating on a prompt
+
+```bash
+uv run --group evals python evals/core/operations/remember_decide.py \
+  --case new_domain_for_unrelated_topic --repeat 1
+```
+
+To add a case, add an entry to the eval's YAML file. No code change is needed
+unless the case needs a kind of check that doesn't exist yet.
