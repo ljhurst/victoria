@@ -15,6 +15,8 @@ _wiki_path = TypeAdapter(WikiPath)
         "wiki/house/plants.md",
         "wiki/business/hours.md",
         "wiki/house/tools/power-tools.md",  # a split category page
+        "wiki/garage/tools.md",  # any domain, not just the seeded ones
+        "wiki/home-office/desk.md",
     ],
 )
 def test_accepts_valid_wiki_paths(path):
@@ -26,7 +28,9 @@ def test_accepts_valid_wiki_paths(path):
     [
         "search.db",  # binary sidecar, not a page path
         "wiki/house/plants",  # missing .md
-        "wiki/garage/tools.md",  # not house or business
+        "wiki/plants.md",  # no domain directory
+        "wiki/House/plants.md",  # domains are lowercase
+        "wiki/../index.md",  # traversal via the domain segment
         "../etc/passwd",  # traversal
         "/wiki/house/plants.md",  # leading slash
         "",

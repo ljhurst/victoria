@@ -69,6 +69,46 @@ class TestEnsureLinked:
         house_section = result.split("## House")[1].split("## Business")[0]
         assert "hours.md" not in house_section
 
+    def test_new_domain_gets_its_own_heading(self):
+        result = remember._ensure_linked(SEED_INDEX, "wiki/home-office/desk.md", "Desk")
+        assert result.endswith("## Home Office\n\n- [Desk](wiki/home-office/desk.md)\n")
+        assert "desk.md" not in result.split("## Home Office")[0]
+
+    def test_matches_existing_heading_regardless_of_wording(self):
+        index_md = SEED_INDEX + "\n## Home Office\n\n- [Desk](wiki/home-office/desk.md)\n"
+        result = remember._ensure_linked(index_md, "wiki/home-office/chair.md", "Chair")
+        assert result.count("## Home Office") == 1
+        assert "- [Chair](wiki/home-office/chair.md)" in result.split("## Home Office")[1]
+
+
+def test_domain_headings_are_read_from_index():
+    assert list(remember._domain_headings(SEED_INDEX)) == ["house", "business"]
+
+
+def test_remember_offers_existing_domains_to_the_model(s3_bucket, settings):
+    captured = {}
+
+    def fake_call_forced_tool(*_args, **kwargs):
+        captured["system"] = kwargs["system"]
+        return _fake_decision()
+
+    with patch.object(
+        remember.anthropic_client, "call_forced_tool", side_effect=fake_call_forced_tool
+    ):
+        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+
+    assert "existing domains are: house, business." in captured["system"]
+
+
+def test_remember_files_into_a_new_domain(s3_bucket, settings):
+    decision = _fake_decision(page_path="wiki/garage/tools.md", title="Tools")
+    with patch.object(remember.anthropic_client, "call_forced_tool", return_value=decision):
+        remember.remember(settings, "fake-api-key", "bought a new socket set")
+
+    assert wiki.file_exists(BUCKET, "wiki/garage/tools.md")
+    index = wiki.get_file(BUCKET, "index.md").content
+    assert "[Tools](wiki/garage/tools.md)" in index.split("## Garage")[1]
+
 
 def test_remember_creates_new_page_and_links_it(s3_bucket, settings):
     with patch.object(remember.anthropic_client, "call_forced_tool", return_value=_fake_decision()):
