@@ -1482,7 +1482,7 @@ requires-dist = [
 
 [[package]]
 name = "victoria-mcp"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/victoria-mcp" }
 dependencies = [
     { name = "aws-lambda-powertools" },
