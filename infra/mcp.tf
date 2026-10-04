@@ -2,6 +2,10 @@
 # porto). Read/write on the wiki bucket, the Anthropic key, its own role and
 # log group. Mirrors viewer.tf.
 
+locals {
+  mcp_function_name = "lj-victoria-mcp"
+}
+
 resource "aws_ssm_parameter" "anthropic_api_key" {
   name  = "/victoria/anthropic-api-key"
   type  = "SecureString"
@@ -36,7 +40,7 @@ data "aws_iam_policy_document" "mcp_lambda_permissions" {
     sid       = "CloudWatchLogs"
     effect    = "Allow"
     actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["arn:aws:logs:*:*:log-group:/aws/lambda/${aws_lambda_function.mcp.function_name}*"]
+    resources = ["arn:aws:logs:*:*:log-group:/aws/lambda/${local.mcp_function_name}*"]
   }
 }
 
@@ -47,7 +51,7 @@ resource "aws_iam_role_policy" "mcp_lambda" {
 }
 
 resource "aws_lambda_function" "mcp" {
-  function_name = "lj-victoria-mcp"
+  function_name = local.mcp_function_name
   role          = aws_iam_role.mcp_lambda.arn
 
   filename         = var.mcp_lambda_package_path

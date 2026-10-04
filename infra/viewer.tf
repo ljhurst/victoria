@@ -2,6 +2,10 @@
 # behind Lasso OAuth. Read-only on the wiki bucket, its own session secret,
 # role and log group. Mirrors mcp.tf.
 
+locals {
+  viewer_function_name = "lj-victoria-viewer"
+}
+
 resource "aws_ssm_parameter" "viewer_session_secret" {
   name  = "/victoria/viewer-session-secret"
   type  = "SecureString"
@@ -36,7 +40,7 @@ data "aws_iam_policy_document" "viewer_lambda_permissions" {
     sid       = "CloudWatchLogs"
     effect    = "Allow"
     actions   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["arn:aws:logs:*:*:log-group:/aws/lambda/${aws_lambda_function.viewer.function_name}*"]
+    resources = ["arn:aws:logs:*:*:log-group:/aws/lambda/${local.viewer_function_name}*"]
   }
 }
 
@@ -47,7 +51,7 @@ resource "aws_iam_role_policy" "viewer_lambda" {
 }
 
 resource "aws_lambda_function" "viewer" {
-  function_name = "lj-victoria-viewer"
+  function_name = local.viewer_function_name
   role          = aws_iam_role.viewer_lambda.arn
 
   filename         = var.viewer_lambda_package_path

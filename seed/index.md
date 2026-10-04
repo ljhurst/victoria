@@ -1,4 +1,4 @@
-# Victoria — wiki index
+# Wiki index
 
 ## House
 
