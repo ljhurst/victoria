@@ -134,7 +134,9 @@ def test_logged_out_page_is_open():
     with TestClient(build_app()) as client:
         response = client.get("/logged-out")
     assert response.status_code == 200
-    assert "Signed out" in response.text
+    assert "<title>Signed out · Victoria</title>" in response.text
+    assert 'rel="icon"' in response.text
+    assert "data:image/svg+xml,%3Csvg" in response.text
 
 
 def test_browse_renders_page_and_sidebar(wiki_bucket, authed):
@@ -145,6 +147,8 @@ def test_browse_renders_page_and_sidebar(wiki_bucket, authed):
     assert "<h1" in response.text and "Tools" in response.text
     assert 'href="/browse/index.md"' in response.text  # sidebar link
     assert "search.db" not in response.text  # not a markdown page
+    assert 'rel="icon"' in response.text
+    assert "<title>Tools · Victoria</title>" in response.text
 
 
 def test_htmx_request_returns_fragment_only(wiki_bucket, authed):

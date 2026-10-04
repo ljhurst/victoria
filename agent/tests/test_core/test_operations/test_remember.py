@@ -12,7 +12,7 @@ from victoria.core.storage import search_index, wiki
 from victoria.core.storage.models import IndexEntry
 
 BUCKET = "victoria-test"
-SEED_INDEX = "# Victoria — wiki index\n\n## House\n\n_(no pages yet — created by `remember` as topics come up)_\n\n## Business\n\n_(no pages yet — created by `remember` as topics come up)_\n"
+SEED_INDEX = "# Wiki index\n\n## House\n\n_(no pages yet — created by `remember` as topics come up)_\n\n## Business\n\n_(no pages yet — created by `remember` as topics come up)_\n"
 
 
 @pytest.fixture
