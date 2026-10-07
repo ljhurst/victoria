@@ -1,6 +1,10 @@
 """MCP tool-call requests -> core/ calls -> MCP responses (DESIGN §14).
 
 Thin wrappers only — no business logic lives here, it's all in core/.
+
+remember and consolidate import their operations lazily: those modules pull in
+the Anthropic SDK, about a second of Lambda cold start that read-only tools
+shouldn't pay.
 """
 
 from typing import Annotated
@@ -8,8 +12,6 @@ from typing import Annotated
 from pydantic import Field
 
 from victoria.core.config import get_core_settings
-from victoria.core.operations import consolidate as consolidate_core
-from victoria.core.operations import remember as remember_core
 from victoria.core.operations.models import ConsolidateResult, RememberResult
 from victoria.core.storage import search_index, wiki
 from victoria.core.storage.models import ListFilesResult, PageContent, SearchResults
@@ -48,9 +50,13 @@ def remember(
     text: Annotated[str, Field(description="Plain prose; Victoria picks the page.")],
 ) -> RememberResult:
     """File new information into the wiki — the 'remember this' path."""
+    from victoria.core.operations import remember as remember_core
+
     return remember_core.remember(get_core_settings(), get_anthropic_api_key(), text)
 
 
 def consolidate() -> ConsolidateResult:
     """Run a consolidation pass: contradictions, stale claims, orphan pages, splits."""
+    from victoria.core.operations import consolidate as consolidate_core
+
     return consolidate_core.consolidate(get_core_settings(), get_anthropic_api_key())
