@@ -7,6 +7,11 @@
 #
 # Usage: build_lambda.sh mcp | viewer
 #
+# Bytecode is precompiled so cold starts don't recompile every dependency
+# from source (/var/task is read-only, so Python can't cache it there).
+# unchecked-hash pycs don't depend on source mtimes, so they stay valid
+# after the mtime normalization below.
+#
 # Reproducible: every file's mtime is normalized before zipping, and -X
 # strips extra fields (extended timestamps, uid/gid) that would otherwise
 # still leak the real build time. Without this, source_code_hash changes
@@ -41,6 +46,13 @@ uv pip install -q \
 for m in "${src_members[@]}"; do
   rsync -a --exclude='*.pyc' --exclude='__pycache__' --exclude='*.swp' \
     "packages/${m}/src/victoria" build/app/
+done
+
+for tree in build/package build/app; do
+  uv run -q --no-project --python 3.13 python -m compileall -q -j 0 \
+    --invalidation-mode unchecked-hash \
+    -s "$tree" -p /var/task \
+    "$tree"
 done
 
 find build -exec touch -t 202001010000.00 {} +
