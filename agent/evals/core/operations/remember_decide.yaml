@@ -62,3 +62,96 @@ cases:
       # the existing entries must survive the merge, not just the new one appear
       - ContentIncludes:
           ["2026-09-21", "2026-09-22", Alvarez, "2026-09-28", "3.5"]
+
+  - name: terse_page_from_rambling_note
+    # a chatty, narrated note should still become a short factual page
+    inputs:
+      text: >-
+        Made Grandma's cowboy cookies again tonight. This is the Marie Hurst
+        recipe from page 190 of the family cookbook, the one with the pencil
+        edits. Used Crisco instead of butter, that matters a lot for the
+        texture. Only 1 cup of packed brown sugar and no white sugar, that's
+        what the pencil edit says and it was the thing I'd been getting wrong,
+        I'd been doing 1 cup white plus 1 cup brown and they spread out and
+        came out cakey. Flour is 2 cups spooned and leveled, about 125 g per
+        cup. Old-fashioned oats, not quick oats. Mixed as little as possible
+        after the flour and oats so the dough stayed lumpy. Baked at 350 on a
+        greased sheet for 12-13 minutes instead of the 15 in the printed
+        recipe, pulled them when the edges were set but the centers still
+        looked soft, then let them sit 5 minutes on the pan. Tested a 1/8
+        batch on 2026-10-23, no vanilla because I ran out. Ended up making 3
+        big cookies, about 4 tbsp of dough each, pressed into thick pucks about
+        3/4 inch. Crispy outside and chewy inside, exactly what I wanted and
+        the family likes the bigger size. Next time I should add the vanilla
+        back and maybe try chilling the dough, and I want to ask dad how big he
+        scoops them and which shortening he uses.
+      domains: [house, business]
+    evaluators:
+      # brevity must not come from dropping facts
+      - ContentIncludes:
+          - Crisco
+          - brown sugar
+          - "350"
+          - "12"
+          - "2026-10-23"
+          - crispy
+          - chewy
+          - Marie Hurst
+      # the note is 230 words; its page should come out shorter
+      - MaxWords: 210
+      - ExcludesPhrases:
+          - next steps
+          - questions for
+          - consider
+          - maybe
+          - might
+          - ask dad
+          - chill
+
+  - name: no_speculation_from_hedged_note
+    inputs:
+      text: >-
+        Furnace filter is 16x25x1, replaced it 2026-10-12. Not sure if the
+        garage unit takes the same size, probably does. Might switch to the
+        pleated kind next time, someone said they last longer but I haven't
+        checked.
+      domains: [house, business]
+    evaluators:
+      - InDomain: house
+      - ContentIncludes: ["16x25x1", "2026-10-12"]
+      - ExcludesPhrases: [probably, might, "last longer", pleated]
+
+  - name: merge_leaves_existing_text
+    # adding a fact must not rewrite or shorten what is already on the page
+    inputs:
+      text: Hydrangeas on the parking strip bloomed pink on 2026-07-02.
+      domains: [house, business]
+      related_pages:
+        - path: wiki/house/plants.md
+          content: |
+            ---
+            title: Plants
+            tags: [garden]
+            last-updated: 2026-06-01
+            ---
+
+            ## Hydrangeas (parking strip)
+
+            Planted three hydrangeas along the parking strip in May 2026. They
+            struggled through the first heat wave, so the north-facing one was
+            moved to a shadier spot on 2026-06-01.
+
+            ## Lavender
+
+            Planted by the mailbox in 2025. Needs full sun and almost no water.
+    evaluators:
+      - Contains:
+          value: {action: update, page_path: wiki/house/plants.md}
+      - ContentIncludes:
+          - struggled through the first heat wave
+          - moved to a shadier spot
+          - Lavender
+          - almost no water
+          - "2026-07-02"
+          - pink
+      - MaxWords: 140

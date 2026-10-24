@@ -45,7 +45,7 @@ See the example [use cases](docs/USE_CASES.md).
   - [`packages/victoria-viewer`](agent/packages/victoria-viewer/) — read-only wiki viewer
   - [`evals/`](agent/evals/) — on-demand evals against the real model ([Evals](#evals))
 - [`infra/`](infra/) — Terraform for the AWS resources (S3, Lambda, IAM, SSM)
-- [`seed/`](seed/) — bootstrap content uploaded to the wiki root on first deploy
+- [`seed/`](seed/) — bootstrap content uploaded to the wiki root on first deploy; later edits are synced to S3 by hand
 
 ## Connect
 

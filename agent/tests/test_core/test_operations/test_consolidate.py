@@ -62,3 +62,19 @@ def test_consolidate_dispatch_wires_all_four_tools(s3_bucket, settings):
     assert wiki.get_file(BUCKET, "wiki/house/tools.md") == PageContent(
         path="wiki/house/tools.md", content="updated content"
     )
+
+
+def test_consolidate_asks_for_style_violations_to_be_reported_not_rewritten(s3_bucket, settings):
+    captured = {}
+
+    def fake_run_tool_loop(*_args, system, **_kwargs):
+        captured["system"] = system
+        return "done"
+
+    with patch.object(
+        consolidate.anthropic_client, "run_tool_loop", side_effect=fake_run_tool_loop
+    ):
+        consolidate.consolidate(settings, "fake-api-key")
+
+    assert "break the Writing style section" in captured["system"]
+    assert "don't rewrite them" in captured["system"]

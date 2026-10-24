@@ -100,6 +100,9 @@ def test_remember_offers_existing_domains_to_the_model(s3_bucket, settings):
 
     assert "existing domains are: house, business." in captured["system"]
 
+    assert "Write every fact the note states and nothing else" in captured["system"]
+    assert "keep its existing text as it is" in captured["system"]
+
 
 def test_remember_files_into_a_new_domain(s3_bucket, settings):
     decision = _fake_decision(page_path="wiki/garage/tools.md", title="Tools")
