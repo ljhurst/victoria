@@ -1,4 +1,8 @@
 ---
+evaluators:
+  # every case: the model's tool calls must apply cleanly on the first attempt
+  - EditsApply: {}
+
 cases:
   - name: new_domain_for_unrelated_topic
     inputs:
@@ -155,3 +159,77 @@ cases:
           - "2026-07-02"
           - pink
       - MaxWords: 140
+
+  - name: append_to_large_page
+    # the page is long and the note is short: the edit should cost the same
+    # as on a small page, and everything already there must survive
+    inputs:
+      text: >-
+        Made the sheet pan lemon chicken with fennel on 2026-10-24. Source is
+        the NYT Cooking recipe by Melissa Clark. Used bone-in thighs at 425F
+        for 40 minutes. The fennel caramelized and the skin came out crisp.
+        Doubled the lemon zest. Chicken reached 175F. Served with rice.
+      domains: [house, business, personal]
+      related_pages:
+        - path: wiki/personal/recipes.md
+          content: |
+            ---
+            title: Recipes
+            tags: [recipes, cooking]
+            last-updated: 2026-10-01
+            ---
+
+            ## Cowboy cookies (Marie Hurst)
+
+            From page 190 of the family cookbook, with pencil edits.
+
+            - 1 cup shortening (Crisco, not butter)
+            - 1 cup packed brown sugar (no white sugar)
+            - 2 eggs
+            - 2 cups flour, spooned and leveled (about 125 g per cup)
+            - 1/2 tsp salt, 1/2 tsp baking powder, 1 tsp baking soda
+            - 1 1/2 cups old-fashioned rolled oats (not quick oats)
+            - 1 tsp vanilla
+            - 12 oz chocolate chips
+
+            Cream shortening and sugar, add eggs, stir in the dry ingredients,
+            then oats, vanilla and chips. Mix minimally after the flour.
+            Bake at 350F on a greased sheet for 12-13 minutes. Pull when the
+            edges are set and the centers are still slightly soft; rest 5
+            minutes on the pan.
+
+            - Original used 1 cup white plus 1 cup brown sugar: the cookies
+              spread and came out cakey.
+            - 2026-10-23 test (1/8 batch, no vanilla): crispy outside, chewy
+              inside. About 4 tbsp of dough per cookie, pressed into 3/4 inch
+              pucks.
+
+            ## Weeknight chili
+
+            - 2 lb ground beef, 1 onion, 3 cloves garlic
+            - 2 cans kidney beans, 1 can crushed tomatoes, 2 tbsp chili powder
+            - Brown the beef and onion, add everything else, simmer 45 minutes.
+            - Freezes well for 3 months.
+
+            ## Sourdough
+
+            - 500 g flour, 350 g water, 100 g starter, 10 g salt
+            - Fold every 30 minutes for 2 hours, proof overnight in the fridge.
+            - Bake covered at 475F for 20 minutes, uncovered for 20 more.
+    evaluators:
+      - Contains:
+          value: {action: update, page_path: wiki/personal/recipes.md}
+      - ContentIncludes:
+          - Cowboy cookies
+          - 2026-10-23 test
+          - Weeknight chili
+          - Freezes well for 3 months
+          - Sourdough
+          - Bake covered at 475F for 20 minutes, uncovered for 20 more.
+          - lemon
+          - fennel
+          - Melissa Clark
+          - "425"
+          - "175"
+      - MaxWords: 400
+      - MaxDuration: 8

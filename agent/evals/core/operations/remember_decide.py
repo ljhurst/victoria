@@ -12,6 +12,7 @@ many times each one runs.
 import argparse
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -19,9 +20,9 @@ from pydantic_evals import Dataset
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext
 
 from victoria.core.integrations import anthropic_client
-from victoria.core.operations import remember
-from victoria.core.operations.models import FileNoteDecision
-from victoria.core.storage.models import PageContent
+from victoria.core.operations import page_edits, remember
+from victoria.core.operations.models import PageAction
+from victoria.core.storage.models import PageContent, PageVersion
 
 CASES_PATH = Path(__file__).resolve().with_suffix(".yaml")
 CONVENTIONS_PATH = Path(__file__).resolve().parents[4] / "seed" / "CONVENTIONS.md"
@@ -34,11 +35,21 @@ class DecideInputs(BaseModel):
     related_pages: list[PageContent] = []
 
 
-type DecideContext = EvaluatorContext[DecideInputs, FileNoteDecision, None]
+class DecideOutput(BaseModel):
+    """The page after the model's edits were applied to the pages it was
+    shown, or the reason they couldn't be."""
+
+    page_path: str = ""
+    action: PageAction | None = None
+    content: str = ""
+    error: str | None = None
+
+
+type DecideContext = EvaluatorContext[DecideInputs, DecideOutput, None]
 
 
 @dataclass
-class InDomain(Evaluator[DecideInputs, FileNoteDecision, None]):
+class InDomain(Evaluator[DecideInputs, DecideOutput, None]):
     domain: str
 
     def evaluate(self, ctx: DecideContext) -> EvaluationReason:
@@ -46,48 +57,56 @@ class InDomain(Evaluator[DecideInputs, FileNoteDecision, None]):
 
 
 @dataclass
-class NewDomain(Evaluator[DecideInputs, FileNoteDecision, None]):
+class NewDomain(Evaluator[DecideInputs, DecideOutput, None]):
     def evaluate(self, ctx: DecideContext) -> EvaluationReason:
         return _filed_under(ctx.output, _domain(ctx.output) not in ctx.inputs.domains)
 
 
 @dataclass
-class ContentIncludes(Evaluator[DecideInputs, FileNoteDecision, None]):
+class ContentIncludes(Evaluator[DecideInputs, DecideOutput, None]):
     """Case-insensitive, and checked against the page content alone — a
     phrase that only made it into the summary doesn't count."""
 
     phrases: list[str]
 
     def evaluate(self, ctx: DecideContext) -> EvaluationReason:
-        content = ctx.output.full_content.lower()
-        missing = [p for p in self.phrases if p.lower() not in content]
+        content = " ".join(ctx.output.content.split()).lower()
+        missing = [p for p in self.phrases if " ".join(p.split()).lower() not in content]
         return EvaluationReason(
             value=not missing, reason=f"missing: {missing}" if missing else None
         )
 
 
 @dataclass
-class MaxWords(Evaluator[DecideInputs, FileNoteDecision, None]):
+class EditsApply(Evaluator[DecideInputs, DecideOutput, None]):
+    """The model's tool calls parse and apply cleanly on the first attempt."""
+
+    def evaluate(self, ctx: DecideContext) -> EvaluationReason:
+        return EvaluationReason(value=ctx.output.error is None, reason=ctx.output.error)
+
+
+@dataclass
+class MaxWords(Evaluator[DecideInputs, DecideOutput, None]):
     """Counts the whole page, frontmatter included. The count is reported on
     pass as well as fail, so a baseline run shows how far over or under it is."""
 
     limit: int
 
     def evaluate(self, ctx: DecideContext) -> EvaluationReason:
-        words = len(ctx.output.full_content.split())
+        words = len(ctx.output.content.split())
         return EvaluationReason(
             value=words <= self.limit, reason=f"{words} words (limit {self.limit})"
         )
 
 
 @dataclass
-class ExcludesPhrases(Evaluator[DecideInputs, FileNoteDecision, None]):
+class ExcludesPhrases(Evaluator[DecideInputs, DecideOutput, None]):
     """Case-insensitive, checked against the page content alone."""
 
     phrases: list[str]
 
     def evaluate(self, ctx: DecideContext) -> EvaluationReason:
-        lines = ctx.output.full_content.splitlines()
+        lines = ctx.output.content.splitlines()
         found = {
             phrase: next(line.strip() for line in lines if phrase.lower() in line.lower())
             for phrase in self.phrases
@@ -102,7 +121,7 @@ def main() -> None:
     parser.add_argument("--repeat", type=int, default=DEFAULT_REPEATS)
     args = parser.parse_args()
 
-    dataset = Dataset[DecideInputs, FileNoteDecision, None].from_file(
+    dataset = Dataset[DecideInputs, DecideOutput, None].from_file(
         CASES_PATH,
         custom_evaluator_types=[
             InDomain,
@@ -110,6 +129,7 @@ def main() -> None:
             ContentIncludes,
             MaxWords,
             ExcludesPhrases,
+            EditsApply,
         ],
     )
     if args.cases:
@@ -117,10 +137,17 @@ def main() -> None:
     client = anthropic_client.get_client(os.environ["ANTHROPIC_API_KEY"])
     conventions = CONVENTIONS_PATH.read_text()
 
-    def decide(inputs: DecideInputs) -> FileNoteDecision:
-        return remember._decide(
-            client, conventions, inputs.domains, inputs.related_pages, inputs.text
-        )
+    def decide(inputs: DecideInputs) -> DecideOutput:
+        shown = [PageVersion(**page.model_dump(), etag="eval") for page in inputs.related_pages]
+        try:
+            edits = remember._decide(client, conventions, inputs.domains, shown, inputs.text)
+            base = next((page for page in shown if page.path == edits.commands[0].path), None)
+            path, action, content = page_edits.apply_edits(
+                base, edits.commands, today=datetime.now(UTC).date()
+            )
+        except page_edits.EditError as e:
+            return DecideOutput(error=str(e))
+        return DecideOutput(page_path=path, action=action, content=content)
 
     report = dataset.evaluate_sync(decide, repeat=args.repeat)
     report.print(include_reasons=True)
@@ -133,11 +160,12 @@ def _select_cases(dataset: Dataset, names: list[str]) -> None:
     dataset.cases = [case for case in dataset.cases if case.name in names]
 
 
-def _domain(decision: FileNoteDecision) -> str:
-    return decision.page_path.split("/")[1]
+def _domain(decision: DecideOutput) -> str:
+    parts = decision.page_path.split("/")
+    return parts[1] if len(parts) > 1 else ""
 
 
-def _filed_under(decision: FileNoteDecision, passed: bool) -> EvaluationReason:
+def _filed_under(decision: DecideOutput, passed: bool) -> EvaluationReason:
     return EvaluationReason(value=passed, reason=None if passed else decision.page_path)
 
 

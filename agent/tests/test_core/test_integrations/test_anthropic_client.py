@@ -1,54 +1,67 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from pydantic import BaseModel
+import pytest
 
 from victoria.core import observability
 from victoria.core.integrations import anthropic_client
+from victoria.core.integrations.anthropic_client import ToolCall
 
 TOOL = {"name": "file_note", "description": "d", "input_schema": {"type": "object"}}
 
 
-class Decision(BaseModel):
-    page: str
-
-
-def _response(block, *, stop_reason="tool_use"):
+def _response(blocks, *, stop_reason="tool_use"):
     return SimpleNamespace(
-        content=[block],
+        content=blocks,
         usage=SimpleNamespace(input_tokens=120, output_tokens=45),
         stop_reason=stop_reason,
         _request_id="req_123",
     )
 
 
-def test_call_forced_tool_logs_usage_and_request_id():
-    block = SimpleNamespace(type="tool_use", name="file_note", input={"page": "wiki/a.md"})
+def _tool_use(name, **tool_input):
+    return SimpleNamespace(type="tool_use", name=name, id="tu_1", input=tool_input)
+
+
+def test_call_tools_returns_every_tool_call_and_logs_usage():
     client = MagicMock()
-    client.messages.create.return_value = _response(block)
+    client.messages.create.return_value = _response(
+        [
+            SimpleNamespace(type="text", text="ignored"),
+            _tool_use("file_note", summary="s"),
+            _tool_use("str_replace_based_edit_tool", command="create", path="p"),
+        ]
+    )
 
     with patch.object(observability, "logger") as logger:
-        result = anthropic_client.call_forced_tool(
+        calls = anthropic_client.call_tools(
             client,
             model="m",
             system="s",
             user_message="u",
-            tool=TOOL,
-            response_model=Decision,
+            tools=[{"name": "file_note"}, {"name": "str_replace_based_edit_tool"}],
         )
 
-    assert result.page == "wiki/a.md"
-    finished = logger.info.call_args_list[-1]
-    assert finished.kwargs == {
-        "stage": "anthropic_call",
-        "duration_ms": finished.kwargs["duration_ms"],
-        "model": "m",
-        "tool": "file_note",
-        "input_tokens": 120,
-        "output_tokens": 45,
-        "stop_reason": "tool_use",
-        "request_id": "req_123",
-    }
+    assert calls == [
+        ToolCall(name="file_note", input={"summary": "s"}),
+        ToolCall(name="str_replace_based_edit_tool", input={"command": "create", "path": "p"}),
+    ]
+    assert client.messages.create.call_args.kwargs["tool_choice"] == {"type": "any"}
+    finished = logger.info.call_args_list[-1].kwargs
+    assert finished["tools"] == ["file_note", "str_replace_based_edit_tool"]
+    assert (finished["input_tokens"], finished["output_tokens"]) == (120, 45)
+    assert finished["stop_reason"] == "tool_use"
+    assert finished["request_id"] == "req_123"
+
+
+def test_call_tools_rejects_a_response_cut_off_mid_tool_call():
+    client = MagicMock()
+    client.messages.create.return_value = _response(
+        [_tool_use("file_note", summary="s")], stop_reason="max_tokens"
+    )
+
+    with pytest.raises(RuntimeError, match="max_tokens"):
+        anthropic_client.call_tools(client, model="m", system="s", user_message="u", tools=[])
 
 
 def test_run_tool_loop_logs_each_iteration():
@@ -56,8 +69,8 @@ def test_run_tool_loop_logs_each_iteration():
     text_block = SimpleNamespace(type="text", text="done")
     client = MagicMock()
     client.messages.create.side_effect = [
-        _response(tool_block),
-        _response(text_block, stop_reason="end_turn"),
+        _response([tool_block]),
+        _response([text_block], stop_reason="end_turn"),
     ]
 
     with patch.object(observability, "logger") as logger:
