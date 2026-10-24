@@ -5,7 +5,7 @@ import pytest
 
 from victoria.core import observability
 from victoria.core.integrations import anthropic_client
-from victoria.core.integrations.anthropic_client import ToolCall
+from victoria.core.integrations.models import ToolCall
 
 TOOL = {"name": "file_note", "description": "d", "input_schema": {"type": "object"}}
 

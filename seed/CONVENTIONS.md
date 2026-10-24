@@ -79,8 +79,8 @@ last-updated: 2026-08-16
 - `title` — required.
 - `tags` — optional, freeform, whatever's useful for `search_wiki` to match on
   later. Not a controlled vocabulary.
-- `last-updated` — updated by whichever tool call (`remember` or `consolidate`)
-  last touched the page.
+- `last-updated` — set automatically whenever `remember` or `consolidate`
+  writes the page. Don't edit it.
 - No other required fields. Don't invent structured fields for things like
   due dates, warranty expiry, or filing deadlines — write them as normal
   prose or a bullet list under a heading that names what it is:

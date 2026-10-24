@@ -12,7 +12,6 @@ many times each one runs.
 import argparse
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -20,8 +19,9 @@ from pydantic_evals import Dataset
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext
 
 from victoria.core.integrations import anthropic_client
-from victoria.core.operations import page_edits, remember
-from victoria.core.operations.models import PageAction
+from victoria.core.operations import remember
+from victoria.core.pages import edits, frontmatter
+from victoria.core.pages.models import PageAction
 from victoria.core.storage.models import PageContent, PageVersion
 
 CASES_PATH = Path(__file__).resolve().with_suffix(".yaml")
@@ -140,14 +140,11 @@ def main() -> None:
     def decide(inputs: DecideInputs) -> DecideOutput:
         shown = [PageVersion(**page.model_dump(), etag="eval") for page in inputs.related_pages]
         try:
-            edits = remember._decide(client, conventions, inputs.domains, shown, inputs.text)
-            base = next((page for page in shown if page.path == edits.commands[0].path), None)
-            path, action, content = page_edits.apply_edits(
-                base, edits.commands, today=datetime.now(UTC).date()
-            )
-        except page_edits.EditError as e:
+            page_edits = remember._decide(client, conventions, inputs.domains, shown, inputs.text)
+            edited = edits.apply_edits(shown, page_edits.commands, today=frontmatter.today())
+        except edits.EditError as e:
             return DecideOutput(error=str(e))
-        return DecideOutput(page_path=path, action=action, content=content)
+        return DecideOutput(page_path=edited.path, action=edited.action, content=edited.content)
 
     report = dataset.evaluate_sync(decide, repeat=args.repeat)
     report.print(include_reasons=True)

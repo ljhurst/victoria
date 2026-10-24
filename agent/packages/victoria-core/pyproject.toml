@@ -1,6 +1,6 @@
 [project]
 name = "victoria-core"
-version = "0.4.0"
+version = "0.4.1"
 description = "Victoria's shared core — S3 wiki storage, search index, agent operations, Lasso token verification"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -435,10 +435,17 @@ victoria/
         storage/
           wiki.py               # list_files, list_pages, get_file, put_file (S3)
           search_index.py       # SQLite/FTS5 sidecar management
-        integrations/anthropic_client.py   # Anthropic SDK wrapper, model tiering
-        operations/
+        integrations/
+          anthropic_client.py   # Anthropic SDK wrapper, model tiering
+          models.py             # ToolCall
+        operations/             # one module per MCP tool, plus the tools' result models
           remember.py           # remember() curation logic (§7)
           consolidate.py        # consolidate() hand-rolled tool-calling loop (§10)
+        pages/                  # page-text work shared by the tools
+          edits.py              # parse the model's str_replace/create calls, apply them to a page
+          frontmatter.py        # title, tags, last-updated
+          index_links.py        # index.md upkeep
+          log.py                # append-only log.md
       victoria-mcp/src/victoria/
         mcp/server.py           # MCP server setup, tool registration, remote auth
         mcp/handlers.py         # MCP tool-call requests -> core/ calls -> MCP responses

@@ -2,9 +2,9 @@ from datetime import date
 
 import pytest
 
-from victoria.core.integrations.anthropic_client import ToolCall
-from victoria.core.operations import page_edits
-from victoria.core.operations.models import Create, PageAction, StrReplace
+from victoria.core.integrations.models import ToolCall
+from victoria.core.pages import edits as page_edits
+from victoria.core.pages.models import Create, PageAction, StrReplace
 from victoria.core.storage.models import PageVersion
 
 TODAY = date(2026, 10, 24)
@@ -35,15 +35,30 @@ class TestApplyEdits:
     def test_appends_to_a_section_and_leaves_everything_else_untouched(self):
         edit = _replace("- Rest 5 minutes", "- Rest 5 minutes\n- Crispy outside, chewy inside")
 
-        path, action, content = page_edits.apply_edits(PAGE, [edit], today=TODAY)
+        edited = page_edits.apply_edits([PAGE], [edit], today=TODAY)
+        path, action, content = edited.path, edited.action, edited.content
 
         assert (path, action) == (PATH, PageAction.UPDATE)
         assert "- Rest 5 minutes\n- Crispy outside, chewy inside\n\n## Soup" in content
         untouched = PAGE.content.replace("last-updated: 2026-10-01", "last-updated: 2026-10-24")
         assert content.replace("\n- Crispy outside, chewy inside", "") == untouched
 
+    def test_update_carries_the_version_title_and_tags_of_the_page_it_edited(self):
+        other = PageVersion(
+            path="wiki/house/plants.md", etag='"v9"', content="---\ntitle: P\n---\nx\n"
+        )
+
+        edited = page_edits.apply_edits(
+            [other, PAGE], [_replace("Simmer 30", "Simmer 35")], today=TODAY
+        )
+
+        assert edited.base_etag == '"v1"'
+        assert (edited.title, edited.tags) == ("Recipes", ["cooking", "baking"])
+
     def test_sets_last_updated_to_today(self):
-        _, _, content = page_edits.apply_edits(PAGE, [_replace("30 minutes", "35")], today=TODAY)
+        content = page_edits.apply_edits(
+            [PAGE], [_replace("30 minutes", "35")], today=TODAY
+        ).content
 
         assert "last-updated: 2026-10-24" in content
         assert "2026-10-01" not in content
@@ -51,21 +66,21 @@ class TestApplyEdits:
     def test_adds_last_updated_when_the_frontmatter_lacks_it(self):
         page = PageVersion(path=PATH, etag="e", content="---\ntitle: Recipes\n---\n\nbody\n")
 
-        _, _, content = page_edits.apply_edits(page, [_replace("body", "body2")], today=TODAY)
+        content = page_edits.apply_edits([page], [_replace("body", "body2")], today=TODAY).content
 
         assert content.startswith("---\ntitle: Recipes\nlast-updated: 2026-10-24\n---\n")
 
     def test_page_without_frontmatter_is_left_without_one(self):
         page = PageVersion(path=PATH, etag="e", content="just text\n")
 
-        _, _, content = page_edits.apply_edits(page, [_replace("text", "words")], today=TODAY)
+        content = page_edits.apply_edits([page], [_replace("text", "words")], today=TODAY).content
 
         assert content == "just words\n"
 
     def test_edits_apply_in_order_to_the_text_so_far(self):
         edits = [_replace("12 minutes", "13 minutes"), _replace("13 minutes", "13-14 minutes")]
 
-        _, _, content = page_edits.apply_edits(PAGE, edits, today=TODAY)
+        content = page_edits.apply_edits([PAGE], edits, today=TODAY).content
 
         assert "- 350F, 13-14 minutes" in content
 
@@ -76,13 +91,13 @@ class TestApplyEdits:
     )
     def test_old_str_must_match_exactly_once(self, old_str, count):
         with pytest.raises(page_edits.EditError, match=f"matched {count} times"):
-            page_edits.apply_edits(PAGE, [_replace(old_str, "x")], today=TODAY)
+            page_edits.apply_edits([PAGE], [_replace(old_str, "x")], today=TODAY)
 
     def test_a_later_edit_failing_rejects_the_whole_set(self):
         edits = [_replace("12 minutes", "13 minutes"), _replace("not there", "x")]
 
         with pytest.raises(page_edits.EditError):
-            page_edits.apply_edits(PAGE, edits, today=TODAY)
+            page_edits.apply_edits([PAGE], edits, today=TODAY)
 
         assert "12 minutes" in PAGE.content
 
@@ -97,67 +112,48 @@ class TestApplyEdits:
     )
     def test_edits_that_leave_the_body_unchanged_are_rejected(self, edit):
         with pytest.raises(page_edits.EditError, match="left the page's text unchanged"):
-            page_edits.apply_edits(PAGE, [edit], today=TODAY)
+            page_edits.apply_edits([PAGE], [edit], today=TODAY)
 
     def test_editing_a_page_that_was_not_shown_is_rejected(self):
         with pytest.raises(page_edits.PageNotShownError) as raised:
-            page_edits.apply_edits(None, [_replace("a", "b")], today=TODAY)
+            page_edits.apply_edits([], [_replace("a", "b")], today=TODAY)
 
         assert raised.value.path == PATH
 
     def test_creates_a_new_page(self):
         text = "---\ntitle: Plants\ntags: [garden]\nlast-updated: 2020-01-01\n---\n\n## Ferns\n"
 
-        path, action, content = page_edits.apply_edits(
-            None, [Create(path="wiki/house/plants.md", file_text=text)], today=TODAY
+        edited = page_edits.apply_edits(
+            [], [Create(path="wiki/house/plants.md", file_text=text)], today=TODAY
         )
 
-        assert (path, action) == ("wiki/house/plants.md", PageAction.CREATE)
-        assert "last-updated: 2026-10-24" in content
-        assert content.endswith("## Ferns\n")
+        assert (edited.path, edited.action) == ("wiki/house/plants.md", PageAction.CREATE)
+        assert edited.base_etag is None
+        assert (edited.title, edited.tags) == ("Plants", ["garden"])
+        assert "last-updated: 2026-10-24" in edited.content
+        assert edited.content.endswith("## Ferns\n")
 
     def test_create_over_a_shown_page_is_rejected(self):
         with pytest.raises(page_edits.EditError, match="already exists"):
-            page_edits.apply_edits(PAGE, [Create(path=PATH, file_text="x")], today=TODAY)
+            page_edits.apply_edits([PAGE], [Create(path=PATH, file_text="x")], today=TODAY)
 
     def test_edits_must_target_one_page(self):
         edits = [_replace("a", "b"), _replace("a", "b", path="wiki/house/plants.md")]
 
         with pytest.raises(page_edits.EditError, match="exactly one page"):
-            page_edits.apply_edits(PAGE, edits, today=TODAY)
+            page_edits.apply_edits([PAGE], edits, today=TODAY)
 
     def test_create_cannot_be_combined_with_other_edits(self):
         edits = [Create(path=PATH, file_text="x"), _replace("a", "b")]
 
         with pytest.raises(page_edits.EditError, match="single create"):
-            page_edits.apply_edits(None, edits, today=TODAY)
+            page_edits.apply_edits([], edits, today=TODAY)
 
     def test_edit_after_create_is_rejected(self):
         edits = [_replace("Simmer", "Boil"), Create(path=PATH, file_text="x")]
 
         with pytest.raises(page_edits.EditError, match="created or edited"):
-            page_edits.apply_edits(PAGE, edits, today=TODAY)
-
-
-class TestFrontmatter:
-    def test_reads_title_and_tags(self):
-        assert page_edits.page_title(PAGE.content, "fallback") == "Recipes"
-        assert page_edits.page_tags(PAGE.content) == ["cooking", "baking"]
-
-    def test_quoted_and_odd_tags(self):
-        content = '---\ntitle: "Cookies: big"\ntags: ["cowboy cookies", 5]\n---\n'
-
-        assert page_edits.page_title(content, "x") == "Cookies: big"
-        assert page_edits.page_tags(content) == ["cowboy cookies", "5"]
-
-    @pytest.mark.parametrize(
-        "content",
-        ["no frontmatter", "---\n: : bad yaml [\n---\n", "---\n- just\n- a list\n---\n"],
-        ids=["none", "bad-yaml", "not-a-mapping"],
-    )
-    def test_falls_back_when_frontmatter_is_missing_or_unreadable(self, content):
-        assert page_edits.page_title(content, "wiki/x/y.md") == "wiki/x/y.md"
-        assert page_edits.page_tags(content) == []
+            page_edits.apply_edits([PAGE], edits, today=TODAY)
 
 
 class TestParseEdits:
