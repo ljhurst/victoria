@@ -1,19 +1,22 @@
-import re
 from datetime import date
 from typing import Any
 
-import yaml
 from pydantic import ValidationError
 
-from victoria.core.integrations.anthropic_client import ToolCall
-from victoria.core.operations.models import Create, EditCommand, PageAction, PageEdits, StrReplace
+from victoria.core.integrations.models import ToolCall
+from victoria.core.pages import frontmatter
+from victoria.core.pages.models import (
+    Create,
+    EditCommand,
+    EditedPage,
+    PageAction,
+    PageEdits,
+    StrReplace,
+)
 from victoria.core.storage.models import PageVersion, WikiPath
 
 EDITOR_TOOL_NAME = "str_replace_based_edit_tool"
 NOTE_TOOL_NAME = "file_note"
-
-_FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
-_LAST_UPDATED = re.compile(r"^last-updated:.*$", re.MULTILINE)
 
 
 class EditError(Exception):
@@ -55,15 +58,15 @@ def parse_edits(calls: list[ToolCall]) -> PageEdits:
 
 
 def apply_edits(
-    base: PageVersion | None, commands: list[EditCommand], *, today: date
-) -> tuple[WikiPath, PageAction, str]:
-    """Apply the edits to the page the model was shown (None when it was
-    shown none) and return the page's path, whether it's new, and its final
-    text. All-or-nothing: any problem raises before a byte is written."""
+    shown: list[PageVersion], commands: list[EditCommand], *, today: date
+) -> EditedPage:
+    """Apply the edits to the page they target, taken from the pages the model
+    was shown. All-or-nothing: any problem raises before a byte is written."""
     paths = {command.path for command in commands}
     if len(paths) != 1:
         raise EditError(f"edits must target exactly one page, got {sorted(paths)}")
     (path,) = paths
+    base = next((page for page in shown if page.path == path), None)
 
     first = commands[0]
     if isinstance(first, Create):
@@ -71,8 +74,22 @@ def apply_edits(
             raise EditError("a new page is a single create command")
         if base is not None:
             raise EditError(f"{path} already exists; update it with str_replace")
-        return path, PageAction.CREATE, with_last_updated(first.file_text, today)
+        action, content = PageAction.CREATE, first.file_text
+    else:
+        action, content = PageAction.UPDATE, _replace(base, commands, path)
 
+    content = frontmatter.with_last_updated(content, today)
+    return EditedPage(
+        path=path,
+        action=action,
+        content=content,
+        base_etag=base.etag if base else None,
+        title=frontmatter.page_title(content, path),
+        tags=frontmatter.page_tags(content),
+    )
+
+
+def _replace(base: PageVersion | None, commands: list[EditCommand], path: WikiPath) -> str:
     if base is None:
         raise PageNotShownError(path, f"{path} was not shown; its text is needed to edit it")
 
@@ -88,33 +105,12 @@ def apply_edits(
             )
         text = text.replace(command.old_str, command.new_str, 1)
 
-    if _body(text) == _body(base.content):
+    if frontmatter.body(text) == frontmatter.body(base.content):
         raise EditError(
             "the edits left the page's text unchanged; add the note's facts below the "
             "frontmatter with str_replace"
         )
-
-    return path, PageAction.UPDATE, with_last_updated(text, today)
-
-
-def page_title(content: str, fallback: str) -> str:
-    return str(_frontmatter(content).get("title") or fallback)
-
-
-def page_tags(content: str) -> list[str]:
-    tags = _frontmatter(content).get("tags") or []
-    return [str(tag) for tag in tags] if isinstance(tags, list) else []
-
-
-def with_last_updated(content: str, today: date) -> str:
-    match = _FRONTMATTER.match(content)
-    if match is None:
-        return content
-
-    line = f"last-updated: {today.isoformat()}"
-    block = match.group(1)
-    block = _LAST_UPDATED.sub(line, block) if _LAST_UPDATED.search(block) else f"{block}\n{line}"
-    return f"---\n{block}\n---\n{content[match.end() :]}"
+    return text
 
 
 def _parse_command(tool_input: dict[str, Any]) -> EditCommand:
@@ -135,19 +131,3 @@ def _parse_command(tool_input: dict[str, Any]) -> EditCommand:
             "wiki/<domain>/<name>.md (no leading slash) and every field is required"
         ) from e
     raise EditError(f"the {command!r} command isn't available; use str_replace or create")
-
-
-def _body(content: str) -> str:
-    match = _FRONTMATTER.match(content)
-    return content[match.end() :] if match else content
-
-
-def _frontmatter(content: str) -> dict[str, Any]:
-    match = _FRONTMATTER.match(content)
-    if match is None:
-        return {}
-    try:
-        meta = yaml.safe_load(match.group(1))
-    except yaml.YAMLError:
-        return {}
-    return meta if isinstance(meta, dict) else {}

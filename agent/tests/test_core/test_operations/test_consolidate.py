@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import patch
 
 import boto3
@@ -6,6 +7,7 @@ from moto import mock_aws
 
 from victoria.core.config import CoreSettings
 from victoria.core.operations import consolidate
+from victoria.core.pages import frontmatter
 from victoria.core.storage import wiki
 from victoria.core.storage.models import ListFilesResult, PageContent
 
@@ -78,3 +80,23 @@ def test_consolidate_asks_for_style_violations_to_be_reported_not_rewritten(s3_b
 
     assert "break the Writing style section" in captured["system"]
     assert "don't rewrite them" in captured["system"]
+
+
+def test_consolidate_sets_last_updated_on_pages_it_writes(s3_bucket, settings):
+    stale = "---\ntitle: Tools\nlast-updated: 2020-01-01\n---\n\ndrill\n"
+    undated = "---\ntitle: Plants\n---\n\nferns\n"
+
+    def fake_run_tool_loop(*_args, dispatch, **_kwargs):
+        dispatch("put_file", {"path": "wiki/house/tools.md", "content": stale})
+        dispatch("put_file", {"path": "wiki/house/plants.md", "content": undated})
+        return "done"
+
+    with (
+        patch.object(frontmatter, "today", return_value=date(2026, 10, 24)),
+        patch.object(consolidate.anthropic_client, "run_tool_loop", side_effect=fake_run_tool_loop),
+    ):
+        consolidate.consolidate(settings, "fake-api-key")
+
+    assert "last-updated: 2026-10-24" in wiki.get_file(BUCKET, "wiki/house/tools.md").content
+    assert "2020-01-01" not in wiki.get_file(BUCKET, "wiki/house/tools.md").content
+    assert "last-updated: 2026-10-24" in wiki.get_file(BUCKET, "wiki/house/plants.md").content

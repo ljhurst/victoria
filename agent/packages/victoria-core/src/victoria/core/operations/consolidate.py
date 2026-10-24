@@ -11,8 +11,8 @@ from pydantic import TypeAdapter
 
 from victoria.core.config import CoreSettings
 from victoria.core.integrations import anthropic_client
-from victoria.core.operations import log
 from victoria.core.operations.models import ConsolidateResult
+from victoria.core.pages import frontmatter, log
 from victoria.core.storage import search_index, wiki
 from victoria.core.storage.models import IndexEntry, WikiPath
 
@@ -51,7 +51,7 @@ _TOOLS = [
         "description": (
             "Write a wiki page's complete new content — used to fix a contradiction, "
             "correct a stale claim, or perform a page split per CONVENTIONS.md. "
-            "Not a diff — the whole file."
+            "Not a diff — the whole file. The last-updated date is set for you."
         ),
         "input_schema": {
             "type": "object",
@@ -109,7 +109,7 @@ def _dispatch(
         # after wiki.put_file already succeeded would leave a confusing
         # half-completed state.
         path = _WIKI_PATH.validate_python(tool_input["path"])
-        content = tool_input["content"]
+        content = frontmatter.with_last_updated(tool_input["content"], frontmatter.today())
         etag = None
         if wiki.file_exists(bucket, path):
             etag = wiki.get_file_with_etag(bucket, path).etag

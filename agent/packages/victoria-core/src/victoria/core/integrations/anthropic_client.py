@@ -6,8 +6,8 @@ from collections.abc import Callable
 from typing import Any
 
 import anthropic
-from pydantic import BaseModel
 
+from victoria.core.integrations.models import ToolCall
 from victoria.core.observability import timed
 
 HAIKU_MODEL = "claude-haiku-4-5-20251001"
@@ -18,11 +18,6 @@ MAX_LINT_TOOL_ITERATIONS = 8
 
 def get_client(api_key: str) -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=api_key)
-
-
-class ToolCall(BaseModel):
-    name: str
-    input: dict[str, Any]
 
 
 def call_tools(
