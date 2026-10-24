@@ -4,8 +4,10 @@ from unittest.mock import Mock, patch
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
+from jwt import PyJWKClientError
 from starlette.testclient import TestClient
 
+from victoria.core import observability
 from victoria.mcp.config import get_mcp_settings
 from victoria.mcp.server import build_app
 
@@ -131,3 +133,34 @@ def test_serves_protected_resource_metadata():
     body = response.json()
     assert body["resource"] == RESOURCE_SERVER_URL
     assert ISSUER_URL in body["authorization_servers"]
+
+
+def test_successful_verification_logs_the_signing_key_stage():
+    with (
+        _patch_jwks(),
+        patch.object(observability, "logger") as logger,
+        TestClient(_app()) as client,
+    ):
+        client.post("/mcp", headers={"Authorization": f"Bearer {_token()}"}, json={})
+
+    finished = [
+        c.kwargs["stage"] for c in logger.info.call_args_list if c.args == ("stage finished",)
+    ]
+    assert "lasso_signing_key" in finished
+
+
+def test_failed_signing_key_lookup_is_rejected_and_logged():
+    with (
+        patch.object(observability, "logger") as logger,
+        patch(
+            "victoria.core.auth.PyJWKClient.get_signing_key_from_jwt",
+            side_effect=PyJWKClientError("lasso unreachable"),
+        ),
+        TestClient(_app()) as client,
+    ):
+        response = client.post("/mcp", headers={"Authorization": f"Bearer {_token()}"}, json={})
+
+    assert response.status_code == 401
+    (failed,) = logger.error.call_args_list
+    assert failed.kwargs["stage"] == "lasso_signing_key"
+    assert failed.kwargs["error"] == "PyJWKClientError"

@@ -71,6 +71,7 @@ resource "aws_lambda_function" "viewer" {
       VIEWER_BASE_URL                 = var.viewer_base_url
       VIEWER_SESSION_SECRET_SSM_PARAM = aws_ssm_parameter.viewer_session_secret.name
       LASSO_CLIENT_ID                 = "victoria-viewer"
+      POWERTOOLS_SERVICE_NAME         = "victoria-viewer"
     }
   }
 }

@@ -6,6 +6,7 @@ from mcp.server.streamable_http import TransportSecuritySettings
 from victoria.mcp import handlers
 from victoria.mcp.auth import LassoTokenVerifier
 from victoria.mcp.config import get_mcp_settings
+from victoria.mcp.tool_logging import log_tool_calls
 
 
 def build_app() -> Starlette:
@@ -27,6 +28,7 @@ def build_app() -> Starlette:
             resource_server_url=settings.resource_server_url,
             required_scopes=["victoria:read", "victoria:write"],
         ),
+        middleware=[log_tool_calls],
     )
 
     server.add_tool(handlers.list_files)

@@ -5,6 +5,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 
+from victoria.core.observability import timed
 from victoria.core.storage import wiki
 from victoria.core.storage.models import PageContent
 from victoria.viewer.config import get_viewer_settings
@@ -18,7 +19,8 @@ async def browse(request: Request) -> Response:
     path = request.path_params.get("path") or "index.md"
 
     content = await _load_page(settings.wiki_bucket, path)
-    page = render_page(path, content.content)
+    with timed("render_page", path=path):
+        page = render_page(path, content.content)
     listing = await run_in_threadpool(wiki.list_pages, settings.wiki_bucket)
     template = "_page.html" if request.headers.get("HX-Request") else "browse.html"
 

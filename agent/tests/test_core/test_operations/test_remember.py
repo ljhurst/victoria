@@ -5,6 +5,7 @@ import pytest
 from moto import mock_aws
 from pydantic import ValidationError
 
+from victoria.core import observability
 from victoria.core.config import CoreSettings
 from victoria.core.operations import remember
 from victoria.core.operations.models import FileNoteDecision, PageAction
@@ -209,3 +210,75 @@ def test_remember_propagates_invalid_decision_before_writing(s3_bucket, settings
         remember.remember(settings, "fake-api-key", "hydrangeas struggling")
 
     assert not wiki.file_exists(BUCKET, "not-a-wiki-page.txt")
+
+
+def _finished_stages(logger) -> list[str]:
+    return [c.kwargs["stage"] for c in logger.info.call_args_list if c.args == ("stage finished",)]
+
+
+def _outer_stages(logger) -> list[str]:
+    return [stage for stage in _finished_stages(logger) if not stage.startswith("s3_")]
+
+
+def test_remember_logs_each_stage_when_creating_a_page(s3_bucket, settings):
+    with (
+        patch.object(remember.anthropic_client, "call_forced_tool", return_value=_fake_decision()),
+        patch.object(observability, "logger") as logger,
+    ):
+        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+
+    assert _outer_stages(logger) == [
+        "read_wiki_context",
+        "search_index_download",
+        "related_pages",
+        "write_page",
+        "link_in_index",
+        "search_index_upload",
+        "append_log",
+        "remember",
+    ]
+
+
+def test_remember_skips_index_link_stage_when_updating_a_page(s3_bucket, settings):
+    wiki.put_file(BUCKET, "wiki/house/plants.md", "old content")
+    update = _fake_decision(action=PageAction.UPDATE)
+    with (
+        patch.object(remember.anthropic_client, "call_forced_tool", return_value=update),
+        patch.object(observability, "logger") as logger,
+    ):
+        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+
+    stages = _outer_stages(logger)
+    assert "write_page" in stages
+    assert "link_in_index" not in stages
+    assert stages[-1] == "remember"
+
+
+def test_remember_logs_failure_of_the_top_level_stage(s3_bucket, settings):
+    with (
+        patch.object(remember.anthropic_client, "call_forced_tool", side_effect=TimeoutError),
+        patch.object(observability, "logger") as logger,
+        pytest.raises(TimeoutError),
+    ):
+        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+
+    failures = [(c.kwargs["stage"], c.kwargs["error"]) for c in logger.error.call_args_list]
+    assert failures == [("remember", "TimeoutError")]
+
+
+def test_remember_s3_calls_are_logged_inside_the_stage_that_made_them(s3_bucket, settings):
+    with (
+        patch.object(remember.anthropic_client, "call_forced_tool", return_value=_fake_decision()),
+        patch.object(observability, "logger") as logger,
+    ):
+        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+
+    events = [
+        (c.args[0], c.kwargs["stage"])
+        for c in logger.info.call_args_list
+        if c.args[0] in ("stage started", "stage finished")
+    ]
+    write_start = events.index(("stage started", "write_page"))
+    write_end = events.index(("stage finished", "write_page"))
+    inside = {stage for _, stage in events[write_start:write_end]}
+    assert {"s3_head", "s3_put"} <= inside
