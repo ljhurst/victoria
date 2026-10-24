@@ -72,6 +72,9 @@ _SYSTEM_TEMPLATE = """You are Victoria's consolidation pass. Review the wiki for
   near-duplicates covering the same area — report these, don't merge them
 - category pages that have grown large enough to be worth splitting into a
   directory, per the Splitting section of CONVENTIONS.md
+- pages that break the Writing style section of CONVENTIONS.md (padding,
+  hedges or suggestions, open questions or next steps, facts stated twice) —
+  report these with the page path and the problem, don't rewrite them
 
 Use list_files and get_file to survey the wiki (start from index.md and each
 category page), search_wiki to check whether a fact appears elsewhere before

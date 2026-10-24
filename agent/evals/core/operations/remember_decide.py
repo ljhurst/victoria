@@ -66,6 +66,36 @@ class ContentIncludes(Evaluator[DecideInputs, FileNoteDecision, None]):
         )
 
 
+@dataclass
+class MaxWords(Evaluator[DecideInputs, FileNoteDecision, None]):
+    """Counts the whole page, frontmatter included. The count is reported on
+    pass as well as fail, so a baseline run shows how far over or under it is."""
+
+    limit: int
+
+    def evaluate(self, ctx: DecideContext) -> EvaluationReason:
+        words = len(ctx.output.full_content.split())
+        return EvaluationReason(
+            value=words <= self.limit, reason=f"{words} words (limit {self.limit})"
+        )
+
+
+@dataclass
+class ExcludesPhrases(Evaluator[DecideInputs, FileNoteDecision, None]):
+    """Case-insensitive, checked against the page content alone."""
+
+    phrases: list[str]
+
+    def evaluate(self, ctx: DecideContext) -> EvaluationReason:
+        lines = ctx.output.full_content.splitlines()
+        found = {
+            phrase: next(line.strip() for line in lines if phrase.lower() in line.lower())
+            for phrase in self.phrases
+            if any(phrase.lower() in line.lower() for line in lines)
+        }
+        return EvaluationReason(value=not found, reason=f"found: {found}" if found else None)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--case", action="append", dest="cases", metavar="NAME")
@@ -73,7 +103,14 @@ def main() -> None:
     args = parser.parse_args()
 
     dataset = Dataset[DecideInputs, FileNoteDecision, None].from_file(
-        CASES_PATH, custom_evaluator_types=[InDomain, NewDomain, ContentIncludes]
+        CASES_PATH,
+        custom_evaluator_types=[
+            InDomain,
+            NewDomain,
+            ContentIncludes,
+            MaxWords,
+            ExcludesPhrases,
+        ],
     )
     if args.cases:
         _select_cases(dataset, args.cases)

@@ -74,6 +74,11 @@ area. If the note is about a different area of life (vehicles or travel, \
 say), start a new domain rather than stretching an existing one to cover it, \
 with a short lowercase name, hyphenated if it needs more than one word.
 
+Write every fact the note states and nothing else, tersely and factually, as the Writing style \
+section above describes: no background, suggestions, open questions or next \
+steps. When updating an existing page, keep its existing text as it is and add \
+only the new facts.
+
 Call file_note with your decision. full_content must be the ENTIRE page \
 content, not just the new part — merge the new note into the existing page \
 content if one was provided below, preserving everything still true."""
