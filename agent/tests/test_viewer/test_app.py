@@ -171,3 +171,27 @@ def _session_cookie(data: dict) -> str:
     """A signed session cookie in Starlette's SessionMiddleware format."""
     signer = TimestampSigner("test-secret")
     return signer.sign(base64.b64encode(json.dumps(data).encode())).decode()
+
+
+def test_browse_logs_the_request_with_its_s3_reads_inside(wiki_bucket, authed):
+    from unittest.mock import patch
+
+    from victoria.core import observability
+
+    with patch.object(observability, "logger") as logger, TestClient(build_app()) as client:
+        client.cookies.set("session", _session_cookie({"access_token": "t"}))
+        response = client.get("/browse/index.md?utm=ignored")
+
+    assert response.status_code == 200
+    events = [
+        (c.args[0], c.kwargs["stage"], c.kwargs)
+        for c in logger.info.call_args_list
+        if c.args[0] in ("stage started", "stage finished")
+    ]
+    stages = [(kind, stage) for kind, stage, _ in events]
+    assert stages[0] == ("stage started", "request")
+    assert stages[-1] == ("stage finished", "request")
+    assert {"s3_get", "s3_list", "render_page"} <= {stage for _, stage in stages}
+    assert events[-1][2]["status"] == 200
+    assert events[-1][2]["path"] == "/browse/index.md"
+    assert "utm" not in str(logger.mock_calls)

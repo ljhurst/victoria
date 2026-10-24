@@ -9,6 +9,8 @@ from functools import lru_cache
 import boto3
 from botocore.exceptions import ClientError
 
+from victoria.core.observability import timed
+
 from .errors import ConditionalWriteFailedError
 from .models import ListFilesResult, PageContent, PageVersion, RawContent
 
@@ -27,14 +29,15 @@ def list_pages(bucket: str) -> ListFilesResult:
 
 
 def file_exists(bucket: str, key: str) -> bool:
-    try:
-        _client().head_object(Bucket=bucket, Key=key)
-        return True
-    except ClientError as e:
-        if e.response["Error"]["Code"] in ("404", "NoSuchKey"):
-            return False
+    with timed("s3_head", key=key):
+        try:
+            _client().head_object(Bucket=bucket, Key=key)
+            return True
+        except ClientError as e:
+            if e.response["Error"]["Code"] in ("404", "NoSuchKey"):
+                return False
 
-        raise
+            raise
 
 
 def get_file(bucket: str, key: str) -> PageContent:
@@ -50,9 +53,12 @@ def get_file_with_etag(bucket: str, key: str) -> PageVersion:
 
 
 def get_bytes(bucket: str, key: str) -> RawContent:
-    obj = _client().get_object(Bucket=bucket, Key=key)
+    with timed("s3_get", key=key) as extra:
+        obj = _client().get_object(Bucket=bucket, Key=key)
+        content = obj["Body"].read()
+        extra["bytes"] = len(content)
 
-    return RawContent(content=obj["Body"].read(), etag=obj["ETag"])
+    return RawContent(content=content, etag=obj["ETag"])
 
 
 def put_file(bucket: str, key: str, content: str, *, if_match: str | None = None) -> str:
@@ -87,24 +93,27 @@ def put_bytes(
     if if_match is not None:
         kwargs["IfMatch"] = if_match
 
-    try:
-        resp = _client().put_object(**kwargs)
-    except ClientError as e:
-        if e.response["Error"]["Code"] in ("PreconditionFailed", "412"):
-            raise ConditionalWriteFailedError(key) from e
+    with timed("s3_put", key=key, bytes=len(content), conditional=if_match is not None):
+        try:
+            resp = _client().put_object(**kwargs)
+        except ClientError as e:
+            if e.response["Error"]["Code"] in ("PreconditionFailed", "412"):
+                raise ConditionalWriteFailedError(key) from e
 
-        raise
+            raise
 
     return resp["ETag"]
 
 
 def _list_keys(bucket: str, prefix: str) -> list[str]:
-    paginator = _client().get_paginator("list_objects_v2")
     keys: list[str] = []
 
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-        for obj in page.get("Contents", []):
-            keys.append(obj["Key"])
+    with timed("s3_list", prefix=prefix) as extra:
+        paginator = _client().get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                keys.append(obj["Key"])
+        extra["keys"] = len(keys)
 
     return keys
 

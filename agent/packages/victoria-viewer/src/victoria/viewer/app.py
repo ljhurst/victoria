@@ -10,6 +10,7 @@ from starlette.routing import Route
 
 from victoria.viewer.auth import oauth
 from victoria.viewer.config import get_session_secret, get_viewer_settings
+from victoria.viewer.request_logging import RequestLoggingMiddleware
 from victoria.viewer.routes import auth, pages
 
 Handler = Callable[[Request], Awaitable[Response]]
@@ -19,12 +20,13 @@ def build_app() -> Starlette:
     settings = get_viewer_settings()
 
     middleware = [
+        Middleware(RequestLoggingMiddleware),
         Middleware(
             SessionMiddleware,
             secret_key=get_session_secret(),
             https_only=settings.https_only,
             same_site="lax",
-        )
+        ),
     ]
 
     routes = [

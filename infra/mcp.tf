@@ -70,6 +70,7 @@ resource "aws_lambda_function" "mcp" {
       LASSO_ISSUER_URL            = var.lasso_issuer_url
       VICTORIA_RESOURCE_URL       = var.resource_server_url
       ANTHROPIC_API_KEY_SSM_PARAM = aws_ssm_parameter.anthropic_api_key.name
+      POWERTOOLS_SERVICE_NAME     = "victoria-mcp"
     }
   }
 }

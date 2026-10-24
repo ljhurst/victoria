@@ -12,6 +12,7 @@ import anthropic
 
 from victoria.core.config import CoreSettings
 from victoria.core.integrations import anthropic_client
+from victoria.core.observability import timed
 from victoria.core.operations import log
 from victoria.core.operations.models import FileNoteDecision, PageAction, RememberResult
 from victoria.core.storage import search_index, wiki
@@ -186,28 +187,36 @@ def _link_in_index(bucket: str, index_key: WikiPath, decision: FileNoteDecision)
         wiki.put_file(bucket, index_key, updated_index, if_match=index_page.etag)
 
 
+@timed("remember")
 def remember(settings: CoreSettings, api_key: str, text: str) -> RememberResult:
     bucket = settings.wiki_bucket
-    conventions = wiki.get_file(bucket, settings.wiki_files.conventions).content
-    domains = list(_domain_headings(wiki.get_file(bucket, settings.wiki_files.index).content))
+    with timed("read_wiki_context"):
+        conventions = wiki.get_file(bucket, settings.wiki_files.conventions).content
+        domains = list(_domain_headings(wiki.get_file(bucket, settings.wiki_files.index).content))
     client = anthropic_client.get_client(api_key)
 
     with search_index.open_session(bucket, settings.search_index.db_key) as index:
-        related_pages = _related_pages(bucket, index, text)
+        with timed("related_pages"):
+            related_pages = _related_pages(bucket, index, text)
         decision = _decide(client, conventions, domains, related_pages, text)
 
-        existing_etag = next((p.etag for p in related_pages if p.path == decision.page_path), None)
-        if existing_etag is None and wiki.file_exists(bucket, decision.page_path):
-            existing_etag = wiki.get_file_with_etag(bucket, decision.page_path).etag
+        with timed("write_page", path=decision.page_path, action=decision.action.value):
+            existing_etag = next(
+                (p.etag for p in related_pages if p.path == decision.page_path), None
+            )
+            if existing_etag is None and wiki.file_exists(bucket, decision.page_path):
+                existing_etag = wiki.get_file_with_etag(bucket, decision.page_path).etag
 
-        _write_page(bucket, index, decision, existing_etag)
+            _write_page(bucket, index, decision, existing_etag)
 
         if decision.action == PageAction.CREATE:
-            _link_in_index(bucket, settings.wiki_files.index, decision)
+            with timed("link_in_index"):
+                _link_in_index(bucket, settings.wiki_files.index, decision)
 
-    log.append(
-        bucket, settings.wiki_files, "remember", f"{decision.page_path} — {decision.summary}"
-    )
+    with timed("append_log"):
+        log.append(
+            bucket, settings.wiki_files, "remember", f"{decision.page_path} — {decision.summary}"
+        )
 
     return RememberResult(
         page=decision.page_path,

@@ -12,6 +12,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from victoria.core.observability import timed
 from victoria.core.storage import wiki
 from victoria.core.storage.models import IndexEntry, SearchHit, SearchResults, WikiPath
 
@@ -127,14 +128,16 @@ def open_session(bucket: str, key: str) -> Iterator[SearchIndexSession]:
     and search_wiki() itself."""
     with tempfile.TemporaryDirectory() as tmp:
         db_path = Path(tmp) / key
-        etag = download(bucket, key, db_path)
+        with timed("search_index_download", key=key):
+            etag = download(bucket, key, db_path)
         conn = open_connection(db_path)
         session = SearchIndexSession(conn)
         try:
             yield session
         finally:
             if session.dirty:
-                upload(bucket, key, db_path, if_match=etag)
+                with timed("search_index_upload", key=key):
+                    upload(bucket, key, db_path, if_match=etag)
             conn.close()
 
 

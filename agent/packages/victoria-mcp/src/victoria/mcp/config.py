@@ -4,6 +4,8 @@ from aws_lambda_powertools.utilities import parameters
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
+from victoria.core.observability import timed
+
 
 class McpSettings(BaseSettings):
     lasso_issuer_url: str = Field(validation_alias="LASSO_ISSUER_URL")
@@ -19,5 +21,6 @@ def get_mcp_settings() -> McpSettings:
 
 
 @lru_cache(maxsize=1)
+@timed("fetch_anthropic_api_key")
 def get_anthropic_api_key() -> str:
     return parameters.get_parameter(get_mcp_settings().anthropic_api_key_param, decrypt=True)

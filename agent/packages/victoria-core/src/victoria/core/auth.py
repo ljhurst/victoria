@@ -9,6 +9,8 @@ import jwt
 from jwt import PyJWKClient, PyJWKClientError
 from pydantic import BaseModel
 
+from victoria.core.observability import timed
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,8 @@ class LassoTokenValidator:
     def validate(self, token: str) -> VerifiedToken | None:
         """Returns the verified token, or None if it fails any check."""
         try:
-            signing_key = self._jwks_client.get_signing_key_from_jwt(token)
+            with timed("lasso_signing_key"):
+                signing_key = self._jwks_client.get_signing_key_from_jwt(token)
             claims = jwt.decode(
                 token,
                 signing_key.key,
