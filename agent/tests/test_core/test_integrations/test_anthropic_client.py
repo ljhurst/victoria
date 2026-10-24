@@ -54,6 +54,16 @@ def test_call_tools_returns_every_tool_call_and_logs_usage():
     assert finished["request_id"] == "req_123"
 
 
+def test_call_tools_reports_a_refusal_with_its_category():
+    client = MagicMock()
+    response = _response([], stop_reason="refusal")
+    response.stop_details = SimpleNamespace(type="refusal", category="bio")
+    client.messages.create.return_value = response
+
+    with pytest.raises(RuntimeError, match="declined.*bio"):
+        anthropic_client.call_tools(client, model="m", system="s", user_message="u", tools=[])
+
+
 def test_call_tools_rejects_a_response_cut_off_mid_tool_call():
     client = MagicMock()
     client.messages.create.return_value = _response(

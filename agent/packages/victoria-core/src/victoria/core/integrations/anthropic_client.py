@@ -10,7 +10,7 @@ import anthropic
 from victoria.core.integrations.models import ToolCall
 from victoria.core.observability import timed
 
-HAIKU_MODEL = "claude-haiku-4-5-20251001"
+HAIKU_MODEL = "claude-haiku-5-5"
 SONNET_MODEL = "claude-sonnet-5"
 
 MAX_LINT_TOOL_ITERATIONS = 8
@@ -44,6 +44,8 @@ def call_tools(
 
     if response.stop_reason == "max_tokens":
         raise RuntimeError("model response was cut off at max_tokens")
+    if response.stop_reason == "refusal":
+        raise RuntimeError(f"model declined the request: {response.stop_details}")
 
     return [
         ToolCall(name=block.name, input=block.input)
