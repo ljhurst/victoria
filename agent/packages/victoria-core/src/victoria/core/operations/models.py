@@ -15,17 +15,47 @@ class PageAction(str, Enum):
     UPDATE = "update"
 
 
-class FileNoteDecision(BaseModel):
-    """remember's forced-tool-call output (DESIGN §7) — validated by
-    call_forced_tool the moment the model responds, before remember() does
-    anything else. page_path being a WikiPath means a bad path fails right
-    here, before any write happens."""
+class StrReplace(BaseModel):
+    """One exact-text replacement in an existing page. old_str must occur
+    exactly once; appending is a replacement of the last line with itself
+    plus the new text."""
 
-    page_path: WikiPath
+    path: WikiPath
+    old_str: str
+    new_str: str = ""
+
+
+class Create(BaseModel):
+    """A whole new page, frontmatter included."""
+
+    path: WikiPath
+    file_text: str
+
+
+EditCommand = StrReplace | Create
+
+
+class PageEdits(BaseModel):
+    """What remember's model call returns: the edits to one page plus the
+    one-line summary and size flag. Paths are WikiPaths, so a bad path fails
+    here, before anything is written."""
+
+    commands: list[EditCommand]
+    summary: str
+    page_getting_large: bool = False
+
+
+class PagePlan(BaseModel):
+    """A page write ready to perform: the final text, and the version tag of
+    the page the edits were applied to (None for a new page) so the write can
+    fail rather than overwrite a concurrent change."""
+
+    path: WikiPath
     action: PageAction
     title: str
     tags: list[str]
-    full_content: str
+    content: str
+    base_etag: str | None
     summary: str
     page_getting_large: bool = False
 

@@ -200,11 +200,16 @@ All operate against the S3 wiki bucket, but the read/write split matters (§2):
 - **Write tool — collapsed into one curation-aware tool**:
   - `remember(text)` — the only externally-exposed write surface. Internally:
     1. `search_wiki` against the new text to find related existing pages
-    2. decide merge-into-existing-page vs. create-new-page (may use a small
-       internal LLM call for this decision — this is where §9's old
-       "cheap model for routine filing" idea now lives)
+    2. decide merge-into-existing-page vs. create-new-page (a small
+       internal LLM call — this is where §9's old "cheap model for routine
+       filing" idea now lives). The model returns edits, not the page: an
+       exact-text `str_replace` against a page it was shown, or a `create`
+       for a new one (Anthropic's text editor tool). Code applies them, so
+       the call's cost doesn't grow with the page, and text the model
+       doesn't touch can't change
     3. apply the schema/conventions file (page format, linking rules)
-    4. `put_file` the result, then update `index.md` and `search.db`
+    4. `put_file` the edited page (conditional on the version the edits were
+       applied to), then update `index.md` and `search.db`
     5. return a short summary to the caller — page path, merged-vs-new — so
        the user can sanity-check what got filed, from their phone
   - `put_file` still exists as an internal primitive `remember` uses — it is

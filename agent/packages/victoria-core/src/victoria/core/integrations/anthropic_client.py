@@ -20,33 +20,41 @@ def get_client(api_key: str) -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=api_key)
 
 
-def call_forced_tool[ModelT: BaseModel](
+class ToolCall(BaseModel):
+    name: str
+    input: dict[str, Any]
+
+
+def call_tools(
     client: anthropic.Anthropic,
     *,
     model: str,
     system: str,
     user_message: str,
-    tool: dict[str, Any],
-    response_model: type[ModelT],
-) -> ModelT:
-    """Send one message, forcing the model to call `tool`. Validates that
-    tool call's input against response_model and returns it. Used for
-    remember's single merge-decision call (DESIGN §7) — not a loop, since
-    there's exactly one decision to make."""
-    with timed("anthropic_call", model=model, tool=tool["name"]) as extra:
+    tools: list[dict[str, Any]],
+) -> list[ToolCall]:
+    """Send one message, requiring the model to call at least one of `tools`,
+    and return every tool call in its response. The caller applies them; no
+    results are sent back, so this is one round trip."""
+    with timed("anthropic_call", model=model, tools=[tool["name"] for tool in tools]) as extra:
         response = client.messages.create(
             model=model,
             max_tokens=4096,
             system=system,
-            tools=[tool],
-            tool_choice={"type": "tool", "name": tool["name"]},
+            tools=tools,
+            tool_choice={"type": "any"},
             messages=[{"role": "user", "content": user_message}],
         )
         extra.update(_response_fields(response))
-    for block in response.content:
-        if block.type == "tool_use" and block.name == tool["name"]:
-            return response_model.model_validate(block.input)
-    raise RuntimeError(f"model did not call the forced tool {tool['name']!r}")
+
+    if response.stop_reason == "max_tokens":
+        raise RuntimeError("model response was cut off at max_tokens")
+
+    return [
+        ToolCall(name=block.name, input=block.input)
+        for block in response.content
+        if block.type == "tool_use"
+    ]
 
 
 def run_tool_loop(
