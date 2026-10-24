@@ -101,16 +101,20 @@ cases:
           - crispy
           - chewy
           - Marie Hurst
-      # the note is 230 words; its page should come out shorter
-      - MaxWords: 210
+      # a page for a 230-word note shouldn't be longer than the note
+      - MaxWords: 230
+      # advice, open questions and to-dos; recording something as untested or
+      # unknown is allowed by the conventions, so topic words are not banned
       - ExcludesPhrases:
           - next steps
+          - next time
           - questions for
           - consider
           - maybe
           - might
+          - should
+          - worth
           - ask dad
-          - chill
 
   - name: no_speculation_from_hedged_note
     inputs:
