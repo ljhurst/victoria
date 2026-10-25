@@ -1,0 +1,17 @@
+---
+name: Check
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    uses: ljhurst/stych/.github/workflows/pre-commit.yml@v1
+    with:
+      terraform-version: "1.17.0"
