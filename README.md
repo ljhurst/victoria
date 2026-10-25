@@ -117,12 +117,9 @@ export AWS_PROFILE=victoria-deploy
 
 ## Deployment
 
-We use Lambda zip + [Terraform](https://developer.hashicorp.com/terraform) to manage infra. First build the Lambda src zips
-
-```bash
-./scripts/build_lambda.sh mcp
-./scripts/build_lambda.sh viewer
-```
+Merging to `main` deploys. The [Terraform workflow](https://github.com/ljhurst/stych)
+from stych builds both Lambda zips and applies `infra/` as `victoria-ci-apply`. Every
+PR gets the plan as a comment, made as the read-only `victoria-ci-plan`.
 
 Before the first apply, create the two secrets. Terraform only references them by name, so their values never reach state
 
@@ -131,16 +128,13 @@ aws ssm put-parameter --name /victoria/anthropic-api-key --type SecureString --v
 aws ssm put-parameter --name /victoria/viewer-session-secret --type SecureString --value ...
 ```
 
-Then from `infra/`
+To deploy by hand (break-glass only), log in as `victoria-deploy` (see [AWS Creds](#aws-creds)), build the zips and apply
 
 ```bash
-terraform plan
-```
-
-And
-
-```bash
-terraform apply
+./scripts/build_lambda.sh mcp
+./scripts/build_lambda.sh viewer
+terraform -chdir=infra plan -out=victoria.tfplan
+terraform -chdir=infra apply victoria.tfplan
 ```
 
 ## Evals
