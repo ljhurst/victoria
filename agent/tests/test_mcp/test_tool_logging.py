@@ -55,8 +55,10 @@ def test_logs_tool_name_and_argument_sizes_not_values(client):
         response = _rpc(client, "tools/call", {"name": "echo", "arguments": {"text": "secret"}})
 
     assert "secret" in response.text
-    (started, _), (finished,) = logger.info.call_args_list[:2], _finished(logger)
-    assert started.kwargs == {"stage": "tool_call", "tool": "echo", "arg_chars": {"text": 6}}
+    (finished,) = _finished(logger)
+    assert finished["stage"] == "tool_call"
+    assert finished["tool"] == "echo"
+    assert finished["arg_chars"] == {"text": 6}
     assert finished["tool_error"] is False
     assert "secret" not in str(logger.mock_calls)
 

@@ -5,16 +5,14 @@ import pytest
 from victoria.core import observability
 
 
-def test_timed_logs_start_then_finish_with_duration_and_extra_fields():
+def test_timed_logs_one_finished_line_with_duration_and_extra_fields():
     with (
         patch.object(observability, "logger") as logger,
         observability.timed("work", path="a.md") as extra,
     ):
         extra["tokens"] = 7
 
-    started, finished = logger.info.call_args_list
-    assert started.args == ("stage started",)
-    assert started.kwargs == {"stage": "work", "path": "a.md"}
+    (finished,) = logger.info.call_args_list
     assert finished.args == ("stage finished",)
     assert finished.kwargs["stage"] == "work"
     assert finished.kwargs["path"] == "a.md"
@@ -32,7 +30,7 @@ def test_timed_logs_failure_with_error_name_and_reraises():
         extra["partial"] = True
         raise ValueError("boom")
 
-    assert [c.args for c in logger.info.call_args_list] == [("stage started",)]
+    logger.info.assert_not_called()
     (failed,) = logger.error.call_args_list
     assert failed.args == ("stage failed",)
     assert failed.kwargs["stage"] == "work"

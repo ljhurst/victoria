@@ -10,13 +10,11 @@ logger = Logger(child=True)
 
 @contextmanager
 def timed(stage: str, **fields: Any) -> Iterator[dict[str, Any]]:
-    """Log a stage's start and duration, as a `with` block or a decorator on a
-    sync function (an async function would time only creating the coroutine).
+    """Log a stage's duration, as a `with` block or a decorator on a sync
+    function (an async function would time only creating the coroutine).
     The yielded dict collects fields only known once the stage has run, and is
-    attached to the closing line. The start line is logged first so a stage
-    that never finishes (a Lambda timeout) is still visible."""
+    attached to the closing line."""
     start = time.perf_counter()
-    logger.info("stage started", stage=stage, **fields)
     extra: dict[str, Any] = {}
     try:
         yield extra

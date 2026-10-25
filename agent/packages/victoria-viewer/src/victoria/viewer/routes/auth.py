@@ -1,6 +1,6 @@
-import logging
 import secrets
 
+from aws_lambda_powertools import Logger
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, RedirectResponse, Response
 
@@ -8,7 +8,7 @@ from victoria.viewer.auth import oauth
 from victoria.viewer.config import get_viewer_settings
 from victoria.viewer.content.constants import TEMPLATES
 
-logger = logging.getLogger(__name__)
+logger = Logger(child=True)
 
 
 async def login(request: Request) -> Response:
@@ -47,7 +47,7 @@ async def logout(request: Request) -> Response:
     id_token = request.session.get("id_token")
     request.session.clear()
     if not id_token:
-        logger.warning("logout: no id_token in session — Lasso SSO session left intact")
+        logger.warning("logout without id_token")
         return RedirectResponse("/logged-out")
 
     # RP-initiated logout: end the Lasso SSO session too, otherwise the next
