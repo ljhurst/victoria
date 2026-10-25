@@ -1,5 +1,6 @@
 import base64
 import json
+from unittest.mock import patch
 
 import boto3
 import pytest
@@ -7,11 +8,13 @@ from itsdangerous import TimestampSigner
 from moto import mock_aws
 from starlette.testclient import TestClient
 
+from victoria.core import observability
 from victoria.core.auth import VerifiedToken
 from victoria.viewer import config
 from victoria.viewer.app import build_app
 from victoria.viewer.auth import oauth
 from victoria.viewer.auth.oauth import OAuthTokens
+from victoria.viewer.routes import auth as auth_routes
 
 BUCKET = "victoria-test"
 
@@ -124,10 +127,11 @@ def test_callback_stores_tokens_and_redirects(monkeypatch):
     assert logout.headers["location"].startswith("https://lasso.example.com/session/end")
 
 
-def test_logout_without_a_session_goes_to_logged_out_page():
-    with TestClient(build_app()) as client:
+def test_logout_without_a_session_goes_to_logged_out_page_and_warns():
+    with patch.object(auth_routes, "logger") as logger, TestClient(build_app()) as client:
         response = client.get("/logout", follow_redirects=False)
     assert response.headers["location"] == "/logged-out"
+    logger.warning.assert_called_once_with("logout without id_token")
 
 
 def test_logged_out_page_is_open():
@@ -174,24 +178,15 @@ def _session_cookie(data: dict) -> str:
 
 
 def test_browse_logs_the_request_with_its_s3_reads_inside(wiki_bucket, authed):
-    from unittest.mock import patch
-
-    from victoria.core import observability
-
     with patch.object(observability, "logger") as logger, TestClient(build_app()) as client:
         client.cookies.set("session", _session_cookie({"access_token": "t"}))
         response = client.get("/browse/index.md?utm=ignored")
 
     assert response.status_code == 200
-    events = [
-        (c.args[0], c.kwargs["stage"], c.kwargs)
-        for c in logger.info.call_args_list
-        if c.args[0] in ("stage started", "stage finished")
-    ]
-    stages = [(kind, stage) for kind, stage, _ in events]
-    assert stages[0] == ("stage started", "request")
-    assert stages[-1] == ("stage finished", "request")
-    assert {"s3_get", "s3_list", "render_page"} <= {stage for _, stage in stages}
-    assert events[-1][2]["status"] == 200
-    assert events[-1][2]["path"] == "/browse/index.md"
+    finished = [c.kwargs for c in logger.info.call_args_list if c.args == ("stage finished",)]
+    stages = [f["stage"] for f in finished]
+    assert stages[-1] == "request"
+    assert {"s3_get", "s3_list", "render_page"} <= set(stages)
+    assert finished[-1]["status"] == 200
+    assert finished[-1]["path"] == "/browse/index.md"
     assert "utm" not in str(logger.mock_calls)

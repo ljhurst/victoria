@@ -48,8 +48,7 @@ def test_logs_method_path_and_status(client):
     with patch.object(observability, "logger") as logger:
         client.get("/page")
 
-    (started, _), (finished, fields) = _lines(logger)
-    assert started == "stage started"
+    ((finished, fields),) = _lines(logger)
     assert finished == "stage finished"
     assert fields["stage"] == "request"
     assert fields["method"] == "GET"

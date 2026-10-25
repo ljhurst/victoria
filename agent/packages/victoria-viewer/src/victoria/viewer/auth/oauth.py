@@ -5,17 +5,17 @@ server only ever verifies tokens; the viewer also has to acquire them.
 
 import base64
 import hashlib
-import logging
 import secrets
 
 import httpx
+from aws_lambda_powertools import Logger
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from victoria.core.auth import LassoTokenValidator, VerifiedToken
 from victoria.viewer.config import ViewerSettings
 
-logger = logging.getLogger(__name__)
+logger = Logger(child=True)
 
 
 class OAuthTokens(BaseModel):
@@ -91,10 +91,10 @@ async def verify_read_token(settings: ViewerSettings, token: str) -> VerifiedTok
         return None
     if READ_SCOPE not in verified.scopes:
         logger.warning(
-            "token verified but missing %s (client=%s, scopes=%s)",
-            READ_SCOPE,
-            verified.client_id,
-            verified.scopes,
+            "token missing read scope",
+            required_scope=READ_SCOPE,
+            client_id=verified.client_id,
+            scopes=verified.scopes,
         )
         return None
     return verified

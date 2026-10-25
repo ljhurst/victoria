@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt import PyJWKClientError
 from starlette.testclient import TestClient
 
+from victoria.core import auth as core_auth
 from victoria.core import observability
 from victoria.mcp.config import get_mcp_settings
 from victoria.mcp.server import build_app
@@ -152,6 +153,7 @@ def test_successful_verification_logs_the_signing_key_stage():
 def test_failed_signing_key_lookup_is_rejected_and_logged():
     with (
         patch.object(observability, "logger") as logger,
+        patch.object(core_auth, "logger") as auth_logger,
         patch(
             "victoria.core.auth.PyJWKClient.get_signing_key_from_jwt",
             side_effect=PyJWKClientError("lasso unreachable"),
@@ -164,3 +166,6 @@ def test_failed_signing_key_lookup_is_rejected_and_logged():
     (failed,) = logger.error.call_args_list
     assert failed.kwargs["stage"] == "lasso_signing_key"
     assert failed.kwargs["error"] == "PyJWKClientError"
+    auth_logger.warning.assert_called_once_with(
+        "token rejected", error="PyJWKClientError", reason="lasso unreachable"
+    )

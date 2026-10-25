@@ -1,7 +1,12 @@
 import asyncio
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import jwt
 import pytest
 
+from victoria.core import auth as core_auth
+from victoria.core.auth import VerifiedToken
 from victoria.viewer.auth import oauth
 from victoria.viewer.config import ViewerSettings
 
@@ -69,3 +74,36 @@ def test_logout_url_points_at_end_session_with_hint_and_redirect():
     assert url.startswith("https://lasso.example.com/session/end?")
     assert "id_token_hint=idt" in url
     assert "post_logout_redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Flogged-out" in url
+
+
+def test_a_token_without_the_read_scope_is_rejected_with_a_structured_warning(monkeypatch):
+    token = VerifiedToken(
+        token="t", client_id="cli", subject=None, scopes=["other"], expires_at=None, claims={}
+    )
+    monkeypatch.setattr(oauth, "_validator", lambda _s: SimpleNamespace(validate=lambda _t: token))
+
+    with patch.object(oauth, "logger") as logger:
+        assert asyncio.run(oauth.verify_read_token(SETTINGS, "t")) is None
+
+    logger.warning.assert_called_once_with(
+        "token missing read scope",
+        required_scope=oauth.READ_SCOPE,
+        client_id="cli",
+        scopes=["other"],
+    )
+
+
+def test_a_malformed_token_is_rejected_with_a_structured_warning():
+    with (
+        patch.object(core_auth, "logger") as logger,
+        patch.object(
+            core_auth.PyJWKClient,
+            "get_signing_key_from_jwt",
+            side_effect=jwt.DecodeError("not enough segments"),
+        ),
+    ):
+        assert asyncio.run(oauth.verify_read_token(SETTINGS, "not-a-jwt")) is None
+
+    logger.warning.assert_called_once_with(
+        "token rejected", error="DecodeError", reason="not enough segments"
+    )

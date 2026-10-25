@@ -341,12 +341,5 @@ def test_remember_s3_calls_are_logged_inside_the_stage_that_made_them(s3_bucket,
     with _model_returns([_note(), _create()]), patch.object(observability, "logger") as logger:
         remember.remember(settings, "fake-api-key", "hydrangeas struggling")
 
-    events = [
-        (c.args[0], c.kwargs["stage"])
-        for c in logger.info.call_args_list
-        if c.args[0] in ("stage started", "stage finished")
-    ]
-    write_start = events.index(("stage started", "write_page"))
-    write_end = events.index(("stage finished", "write_page"))
-    inside = {stage for _, stage in events[write_start:write_end]}
-    assert "s3_put" in inside
+    finished = _finished_stages(logger)
+    assert finished[finished.index("write_page") - 1] == "s3_put"

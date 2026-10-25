@@ -3,15 +3,14 @@ check and the viewer's session guard. Signature/`iss`/`aud`/`exp` are all
 verified against Lasso's published JWKS — nothing here needs a secret.
 """
 
-import logging
-
 import jwt
+from aws_lambda_powertools import Logger
 from jwt import PyJWKClient, PyJWKClientError
 from pydantic import BaseModel
 
 from victoria.core.observability import timed
 
-logger = logging.getLogger(__name__)
+logger = Logger(child=True)
 
 
 class VerifiedToken(BaseModel):
@@ -43,7 +42,7 @@ class LassoTokenValidator:
                 leeway=60,
             )
         except (jwt.PyJWTError, PyJWKClientError) as e:
-            logger.warning("Lasso token rejected: %s: %s", type(e).__name__, e)
+            logger.warning("token rejected", error=type(e).__name__, reason=str(e))
             return None
 
         return VerifiedToken(

@@ -1,9 +1,5 @@
-from aws_lambda_powertools import Logger
-
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from victoria.core.auth import LassoTokenValidator
-
-logger = Logger()
 
 
 class LassoTokenVerifier(TokenVerifier):
@@ -14,7 +10,6 @@ class LassoTokenVerifier(TokenVerifier):
     async def verify_token(self, token: str) -> AccessToken | None:
         verified = self._validator.validate(token)
         if verified is None:
-            logger.warning("LassoTokenVerifier rejected token")
             return None
 
         return AccessToken(
