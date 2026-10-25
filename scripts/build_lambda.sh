@@ -21,9 +21,18 @@ set -euo pipefail
 
 target="${1:-}"
 case "$target" in
-  mcp)    member=victoria-mcp;    src_members=(victoria-core victoria-mcp) ;;
-  viewer) member=victoria-viewer; src_members=(victoria-core victoria-viewer) ;;
-  *) echo "usage: $0 mcp|viewer" >&2; exit 2 ;;
+mcp)
+  member=victoria-mcp
+  src_members=(victoria-core victoria-mcp)
+  ;;
+viewer)
+  member=victoria-viewer
+  src_members=(victoria-core victoria-viewer)
+  ;;
+*)
+  echo "usage: $0 mcp|viewer" >&2
+  exit 2
+  ;;
 esac
 
 cd "$(dirname "$0")/../agent"
