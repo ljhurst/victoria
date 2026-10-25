@@ -1,0 +1,25 @@
+---
+name: Deploy
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform:
+    uses: ljhurst/stych/.github/workflows/terraform.yml@v1
+    with:
+      plan-role-arn: arn:aws:iam::755958650241:role/stych/victoria-ci-plan
+      apply-role-arn: arn:aws:iam::755958650241:role/stych/victoria-ci-apply
+      build-command: >-
+        scripts/build_lambda.sh mcp
+        && scripts/build_lambda.sh viewer
+      setup-uv: true

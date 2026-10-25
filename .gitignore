@@ -5,7 +5,7 @@ infra/*.tfstate.backup
 infra/crash.log
 infra/override.tf
 infra/override.tf.json
-infra/*.tfvars
+infra/*.tfplan
 
 # Editor swap files
 *.swp
