@@ -6,16 +6,6 @@ locals {
   mcp_function_name = "lj-victoria-mcp"
 }
 
-resource "aws_ssm_parameter" "anthropic_api_key" {
-  name  = "/victoria/anthropic-api-key"
-  type  = "SecureString"
-  value = "REPLACE_ME_MANUALLY"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
 resource "aws_iam_role" "mcp_lambda" {
   name               = "victoria-lambda"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
@@ -33,7 +23,7 @@ data "aws_iam_policy_document" "mcp_lambda_permissions" {
     sid       = "ReadAnthropicApiKey"
     effect    = "Allow"
     actions   = ["ssm:GetParameter"]
-    resources = [aws_ssm_parameter.anthropic_api_key.arn]
+    resources = ["${local.ssm_param_arn_prefix}${local.anthropic_api_key_ssm_param}"]
   }
 
   statement {
@@ -69,7 +59,7 @@ resource "aws_lambda_function" "mcp" {
       WIKI_BUCKET                 = aws_s3_bucket.wiki.bucket
       LASSO_ISSUER_URL            = var.lasso_issuer_url
       VICTORIA_RESOURCE_URL       = var.resource_server_url
-      ANTHROPIC_API_KEY_SSM_PARAM = aws_ssm_parameter.anthropic_api_key.name
+      ANTHROPIC_API_KEY_SSM_PARAM = local.anthropic_api_key_ssm_param
       POWERTOOLS_SERVICE_NAME     = "victoria-mcp"
     }
   }
