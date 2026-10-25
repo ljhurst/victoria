@@ -71,7 +71,7 @@ mcp-inspector
 
 You'll see these available tools
 
-- `list_files`: List all raw files under a prefix 
+- `list_files`: List all raw files under a prefix
 - `get_file`: Get raw file content
 - `search_wiki`: Retrieve relevant snippets
 - `remember`: Store a fact in the knowledge base

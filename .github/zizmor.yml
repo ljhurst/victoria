@@ -1,0 +1,9 @@
+---
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # stych's own actions follow the floating v1 tag on purpose; release
+        # tags are protected and only the owner can move v1.
+        "ljhurst/stych/*": ref-pin
+        "*": hash-pin
