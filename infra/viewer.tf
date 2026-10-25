@@ -6,16 +6,6 @@ locals {
   viewer_function_name = "lj-victoria-viewer"
 }
 
-resource "aws_ssm_parameter" "viewer_session_secret" {
-  name  = "/victoria/viewer-session-secret"
-  type  = "SecureString"
-  value = "REPLACE_ME_MANUALLY"
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
 resource "aws_iam_role" "viewer_lambda" {
   name               = "victoria-viewer-lambda"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
@@ -33,7 +23,7 @@ data "aws_iam_policy_document" "viewer_lambda_permissions" {
     sid       = "ReadViewerSessionSecret"
     effect    = "Allow"
     actions   = ["ssm:GetParameter"]
-    resources = [aws_ssm_parameter.viewer_session_secret.arn]
+    resources = ["${local.ssm_param_arn_prefix}${local.viewer_session_secret_ssm_param}"]
   }
 
   statement {
@@ -69,7 +59,7 @@ resource "aws_lambda_function" "viewer" {
       WIKI_BUCKET                     = aws_s3_bucket.wiki.bucket
       LASSO_ISSUER_URL                = var.lasso_issuer_url
       VIEWER_BASE_URL                 = var.viewer_base_url
-      VIEWER_SESSION_SECRET_SSM_PARAM = aws_ssm_parameter.viewer_session_secret.name
+      VIEWER_SESSION_SECRET_SSM_PARAM = local.viewer_session_secret_ssm_param
       LASSO_CLIENT_ID                 = "victoria-viewer"
       POWERTOOLS_SERVICE_NAME         = "victoria-viewer"
     }

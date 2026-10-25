@@ -124,6 +124,13 @@ We use Lambda zip + [Terraform](https://developer.hashicorp.com/terraform) to ma
 ./scripts/build_lambda.sh viewer
 ```
 
+Before the first apply, create the two secrets. Terraform only references them by name, so their values never reach state
+
+```bash
+aws ssm put-parameter --name /victoria/anthropic-api-key --type SecureString --value ...
+aws ssm put-parameter --name /victoria/viewer-session-secret --type SecureString --value ...
+```
+
 Then from `infra/`
 
 ```bash

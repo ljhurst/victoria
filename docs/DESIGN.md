@@ -352,7 +352,7 @@ build here; keeping this section only as a note of what was dropped and why.
 ## 13. Tech stack
 
 - **Terraform** for all infra: S3 bucket (+ versioning), Lambda function, Lambda
-  Function URL, SSM parameters (values set out-of-band, never committed), IAM
+  Function URL, SSM parameters (created out-of-band, referenced by name), IAM
   role/policy (least privilege: scoped S3 bucket access, SSM read on specific
   parameter paths, CloudWatch Logs). EventBridge schedule rule is phase 2 (§9),
   not applied in v1. Applied manually (`terraform plan`/`apply` by hand) — no
@@ -419,7 +419,8 @@ victoria/
     log.md                   # empty audit-log template
   infra/                     # Terraform
     main.tf, backend.tf, s3.tf, iam.tf   # shared: provider, state, wiki bucket, lambda trust
-    mcp.tf, viewer.tf                    # one file per Lambda: role, policy, function, URL, log group, its SSM param
+    mcp.tf, viewer.tf                    # one file per Lambda: role, policy, function, URL, log group
+    ssm.tf                               # names of the out-of-band SSM secrets
     variables.tf, outputs.tf
     # EventBridge is phase 2 (§9) — not applied in v1
   scripts/
