@@ -14,7 +14,7 @@ export LASSO_ISSUER_URL="${LASSO_ISSUER_URL:-https://zzspanxrc7v4tvou4acvdq36oi0
 export VIEWER_BASE_URL="${VIEWER_BASE_URL:-http://localhost:8000}"
 # Local redirect stays on localhost, but the token is audience-bound to the
 # deployed viewer URL — the resource indicator actually registered in Lasso.
-export VIEWER_RESOURCE_URL="${VIEWER_RESOURCE_URL:-https://s4wndhtrbjoflmoqeb4zvvmeim0cyodv.lambda-url.us-east-1.on.aws/}"
+export VIEWER_RESOURCE_URL="${VIEWER_RESOURCE_URL:-https://victoria-viewer.bylukehurst.com/}"
 export VIEWER_SESSION_SECRET="${VIEWER_SESSION_SECRET:-local-dev-not-secret}"
 
 exec uv run --package victoria-viewer uvicorn victoria.viewer.app:build_app \
