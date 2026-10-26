@@ -9,6 +9,7 @@ from starlette.testclient import TestClient
 
 from victoria.core import auth as core_auth
 from victoria.core import observability
+from victoria.mcp.auth import get_lasso_validator
 from victoria.mcp.config import get_mcp_settings
 from victoria.mcp.server import build_app
 
@@ -23,8 +24,10 @@ def _mcp_env(monkeypatch):
     monkeypatch.setenv("LASSO_ISSUER_URL", ISSUER_URL)
     monkeypatch.setenv("VICTORIA_RESOURCE_URL", RESOURCE_SERVER_URL)
     get_mcp_settings.cache_clear()
+    get_lasso_validator.cache_clear()
     yield
     get_mcp_settings.cache_clear()
+    get_lasso_validator.cache_clear()
 
 
 def _app():
@@ -169,3 +172,40 @@ def test_failed_signing_key_lookup_is_rejected_and_logged():
     auth_logger.warning.assert_called_once_with(
         "token rejected", error="PyJWKClientError", reason="lasso unreachable"
     )
+
+
+def test_does_not_advertise_list_changed_notifications():
+    """Clients open a long-lived subscription stream for change notifications,
+    which a buffered Lambda response can never finish, so none are advertised."""
+    protocol_version = "2026-07-28"
+    envelope = {
+        "io.modelcontextprotocol/protocolVersion": protocol_version,
+        "io.modelcontextprotocol/clientCapabilities": {},
+    }
+    with _patch_jwks(), TestClient(_app()) as client:
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "server/discover",
+                "params": {"_meta": envelope},
+            },
+            headers={
+                "Authorization": f"Bearer {_token()}",
+                "Accept": "application/json, text/event-stream",
+                "MCP-Protocol-Version": protocol_version,
+                "Mcp-Method": "server/discover",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["result"]["capabilities"]["tools"]["listChanged"] is False
+
+
+def test_rebuilding_the_app_reuses_one_jwks_client():
+    with patch("victoria.core.auth.PyJWKClient") as jwks_client:
+        _app()
+        _app()
+
+    jwks_client.assert_called_once()

@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -1516,7 +1516,7 @@ requires-dist = [
 
 [[package]]
 name = "victoria-mcp"
-version = "0.2.4"
+version = "0.2.5"
 source = { editable = "packages/victoria-mcp" }
 dependencies = [
     { name = "aws-lambda-powertools" },

@@ -29,6 +29,7 @@ def build_app() -> Starlette:
             required_scopes=["victoria:read", "victoria:write"],
         ),
         middleware=[log_tool_calls],
+        subscriptions=False,
     )
 
     server.add_tool(handlers.list_files)
