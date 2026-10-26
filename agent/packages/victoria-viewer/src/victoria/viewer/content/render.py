@@ -17,7 +17,7 @@ _FIRST_HEADING = re.compile(r"^#\s+(.+)$", re.MULTILINE)
 _EXTERNAL = re.compile(r"\A([a-z][a-z0-9+.-]*:|//|#|/)")
 
 _md = (
-    MarkdownIt("commonmark", {"typographer": True})
+    MarkdownIt("commonmark", {"typographer": True, "html": False})
     .enable(["table", "strikethrough"])
     .use(anchors_plugin, max_level=4)
 )
