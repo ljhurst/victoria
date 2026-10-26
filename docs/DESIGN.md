@@ -157,7 +157,8 @@ Three agent operations:
   home-inventory and LLC/tax data was a real cost and privacy risk.
 - Secrets: the Anthropic API key still lives in **SSM Parameter Store**
   (SecureString, KMS-encrypted). Auth config (`LASSO_ISSUER_URL`,
-  `VICTORIA_RESOURCE_URL`) is plain Lambda environment variables, set via
+  `VICTORIA_RESOURCE_URL`, and `VICTORIA_RESOURCE_URL_ALIASES` for audiences
+  accepted while clients move) is plain Lambda environment variables, set via
   Terraform — nothing secret to store for victoria's own inbound auth, since
   JWT verification only needs Lasso's public JWKS.
 

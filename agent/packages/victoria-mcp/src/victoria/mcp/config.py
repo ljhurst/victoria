@@ -10,9 +10,17 @@ from victoria.core.observability import timed
 class McpSettings(BaseSettings):
     lasso_issuer_url: str = Field(validation_alias="LASSO_ISSUER_URL")
     resource_server_url: str = Field(validation_alias="VICTORIA_RESOURCE_URL")
+    resource_server_aliases: str = Field(
+        default="", validation_alias="VICTORIA_RESOURCE_URL_ALIASES"
+    )
     anthropic_api_key_param: str = Field(
         default="/victoria/anthropic-api-key", validation_alias="ANTHROPIC_API_KEY_SSM_PARAM"
     )
+
+    @property
+    def accepted_audiences(self) -> tuple[str, ...]:
+        aliases = [a.strip() for a in self.resource_server_aliases.split(",") if a.strip()]
+        return (self.resource_server_url, *aliases)
 
 
 @lru_cache(maxsize=1)

@@ -21,7 +21,9 @@ def build_app() -> Starlette:
             "Use consolidate sparingly, when asked to check the wiki for problems."
         ),
         token_verifier=LassoTokenVerifier(
-            issuer_url=settings.lasso_issuer_url, resource_server_url=settings.resource_server_url
+            issuer_url=settings.lasso_issuer_url,
+            resource_server_url=settings.resource_server_url,
+            accepted_audiences=settings.accepted_audiences,
         ),
         auth=AuthSettings(
             issuer_url=settings.lasso_issuer_url,
