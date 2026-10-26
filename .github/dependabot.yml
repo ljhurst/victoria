@@ -1,0 +1,41 @@
+---
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /agent
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      monthly-batch:
+        patterns: ["*"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: terraform
+    directory: /infra
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      monthly-batch:
+        patterns: ["*"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      monthly-batch:
+        patterns: ["*"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
