@@ -3,6 +3,8 @@ check and the viewer's session guard. Signature/`iss`/`aud`/`exp` are all
 verified against Lasso's published JWKS — nothing here needs a secret.
 """
 
+from collections.abc import Sequence
+
 import jwt
 from aws_lambda_powertools import Logger
 from jwt import PyJWKClient, PyJWKClientError
@@ -23,7 +25,7 @@ class VerifiedToken(BaseModel):
 
 
 class LassoTokenValidator:
-    def __init__(self, *, issuer_url: str, audience: str) -> None:
+    def __init__(self, *, issuer_url: str, audience: str | Sequence[str]) -> None:
         self._issuer_url = issuer_url
         self._audience = audience
         self._jwks_client = PyJWKClient(f"{issuer_url.rstrip('/')}/jwks")

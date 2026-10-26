@@ -34,7 +34,7 @@ variable "lasso_issuer_url" {
   type        = string
 }
 
-variable "resource_server_url" {
-  description = "Victoria's own OAuth resource identifier. Set to this Lambda's Function URL."
+variable "legacy_resource_server_url" {
+  description = "The MCP Lambda's Function URL, still accepted as a token audience until every client has moved to the custom domain."
   type        = string
 }
