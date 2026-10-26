@@ -8,8 +8,8 @@ output "mcp_server_url" {
 }
 
 output "viewer_url" {
-  description = "The wiki viewer's Function URL. Set this as `viewer_base_url` in terraform.tfvars and re-apply, and register `<url>auth/callback` as a redirect URI for the `victoria-viewer` client in Lasso."
-  value       = aws_lambda_function_url.viewer.function_url
+  description = "The wiki viewer's address; the Function URL is only the CloudFront origin."
+  value       = "https://${local.viewer_domain}/"
 }
 
 output "viewer_cname_target" {

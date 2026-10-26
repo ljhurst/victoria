@@ -80,7 +80,7 @@ You'll see these available tools
 The Viewer is a web app that lives at
 
 ```text
-https://s4wndhtrbjoflmoqeb4zvvmeim0cyodv.lambda-url.us-east-1.on.aws/
+https://victoria-viewer.bylukehurst.com/
 ```
 
 ## Architecture
