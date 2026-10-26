@@ -16,3 +16,8 @@ output "viewer_cname_target" {
   description = "Point a DNS-only CNAME for victoria-viewer in Cloudflare at this hostname"
   value       = module.viewer_front.cname_target
 }
+
+output "mcp_cname_target" {
+  description = "Point a DNS-only CNAME for victoria-mcp in Cloudflare at this hostname"
+  value       = module.mcp_front.cname_target
+}

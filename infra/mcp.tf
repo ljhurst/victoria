@@ -3,6 +3,7 @@
 # log group. Mirrors viewer.tf.
 
 locals {
+  mcp_domain        = "victoria-mcp.bylukehurst.com"
   mcp_function_name = "lj-victoria-mcp"
 }
 
@@ -75,4 +76,12 @@ resource "aws_lambda_function_url" "mcp" {
 resource "aws_cloudwatch_log_group" "mcp" {
   name              = "/aws/lambda/${aws_lambda_function.mcp.function_name}"
   retention_in_days = 30
+}
+
+module "mcp_front" {
+  source = "git::https://github.com/ljhurst/stych.git//infra/modules/function-url-site?ref=v1.5.0"
+
+  domain_name    = local.mcp_domain
+  function_url   = aws_lambda_function_url.mcp.function_url
+  origin_timeout = aws_lambda_function.mcp.timeout
 }
