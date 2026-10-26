@@ -27,3 +27,20 @@ def test_external_and_anchor_links_are_left_alone():
 def test_headings_get_anchor_ids():
     page = render_page("index.md", "## Parking Strip\n")
     assert 'id="parking-strip"' in page.html
+
+
+def test_script_tag_is_escaped():
+    page = render_page("index.md", "<script>alert(1)</script>\n")
+    assert "<script" not in page.html
+    assert "&lt;script&gt;" in page.html
+
+
+def test_inline_html_event_handler_is_escaped():
+    page = render_page("index.md", "hi <img src=x onerror=alert(1)>\n")
+    assert "<img" not in page.html
+    assert "&lt;img" in page.html
+
+
+def test_javascript_links_are_not_linked():
+    page = render_page("index.md", "[x](javascript:alert(1))\n")
+    assert "href=" not in page.html
