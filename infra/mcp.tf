@@ -58,12 +58,11 @@ resource "aws_lambda_function" "mcp" {
 
   environment {
     variables = {
-      WIKI_BUCKET                   = aws_s3_bucket.wiki.bucket
-      LASSO_ISSUER_URL              = var.lasso_issuer_url
-      VICTORIA_RESOURCE_URL         = "https://${local.mcp_domain}/"
-      VICTORIA_RESOURCE_URL_ALIASES = var.legacy_resource_server_url
-      ANTHROPIC_API_KEY_SSM_PARAM   = local.anthropic_api_key_ssm_param
-      POWERTOOLS_SERVICE_NAME       = "victoria-mcp"
+      WIKI_BUCKET                 = aws_s3_bucket.wiki.bucket
+      LASSO_ISSUER_URL            = var.lasso_issuer_url
+      VICTORIA_RESOURCE_URL       = "https://${local.mcp_domain}/"
+      ANTHROPIC_API_KEY_SSM_PARAM = local.anthropic_api_key_ssm_param
+      POWERTOOLS_SERVICE_NAME     = "victoria-mcp"
     }
   }
 }

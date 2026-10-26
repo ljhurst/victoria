@@ -33,8 +33,3 @@ variable "lasso_issuer_url" {
   description = "Lasso's OIDC issuer URL — the authorization server Victoria verifies MCP bearer tokens against."
   type        = string
 }
-
-variable "legacy_resource_server_url" {
-  description = "The MCP Lambda's Function URL, still accepted as a token audience until every client has moved to the custom domain."
-  type        = string
-}

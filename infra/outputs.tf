@@ -3,8 +3,8 @@ output "wiki_bucket" {
 }
 
 output "mcp_server_url" {
-  description = "Add this as the URL when adding Victoria as a custom connector in Claude mobile app (DESIGN §5)."
-  value       = aws_lambda_function_url.mcp.function_url
+  description = "The MCP endpoint porto and the MCP Inspector connect to."
+  value       = "https://${local.mcp_domain}/mcp"
 }
 
 output "viewer_url" {

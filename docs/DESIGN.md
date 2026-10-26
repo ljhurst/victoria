@@ -157,8 +157,7 @@ Three agent operations:
   home-inventory and LLC/tax data was a real cost and privacy risk.
 - Secrets: the Anthropic API key still lives in **SSM Parameter Store**
   (SecureString, KMS-encrypted). Auth config (`LASSO_ISSUER_URL`,
-  `VICTORIA_RESOURCE_URL`, and `VICTORIA_RESOURCE_URL_ALIASES` for audiences
-  accepted while clients move) is plain Lambda environment variables, set via
+  `VICTORIA_RESOURCE_URL`) is plain Lambda environment variables, set via
   Terraform — nothing secret to store for victoria's own inbound auth, since
   JWT verification only needs Lasso's public JWKS.
 
@@ -522,8 +521,8 @@ conventions, and now `mcp/server.py`'s auth can all proceed.
       wraps Astral's uv + AWS Lambda recipe to resolve native-dependency
       packages (`pydantic-core`, `cryptography`) for Lambda's linux/arm64
       runtime from a macOS dev machine, no Docker needed; run it, then
-      `terraform apply`, set the two SSM secret values, and add Victoria as
-      a custom connector in Claude mobile app
+      `terraform apply`, set the two SSM secret values, and point porto's
+      victoria backend at `https://victoria-mcp.bylukehurst.com/mcp`
 - [x] Read-only wiki viewer (§17): `victoria-viewer` workspace member + its
       own Lambda in `infra/viewer.tf`. Still to do: register the
       `victoria-viewer` client + grant your user `victoria:read` in the lasso
