@@ -60,7 +60,7 @@ resource "aws_lambda_function" "viewer" {
     variables = {
       WIKI_BUCKET                     = aws_s3_bucket.wiki.bucket
       LASSO_ISSUER_URL                = var.lasso_issuer_url
-      VIEWER_BASE_URL                 = var.viewer_base_url
+      VIEWER_BASE_URL                 = "https://${local.viewer_domain}/"
       VIEWER_SESSION_SECRET_SSM_PARAM = local.viewer_session_secret_ssm_param
       LASSO_CLIENT_ID                 = "victoria-viewer"
       POWERTOOLS_SERVICE_NAME         = "victoria-viewer"

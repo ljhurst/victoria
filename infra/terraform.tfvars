@@ -7,4 +7,3 @@ viewer_lambda_package_path = "../agent/dist/victoria-viewer.zip"
 
 lasso_issuer_url    = "https://zzspanxrc7v4tvou4acvdq36oi0yjdrz.lambda-url.us-east-1.on.aws/"
 resource_server_url = "https://diozeathy56roah5fxesmhji640ugrkn.lambda-url.us-east-1.on.aws/"
-viewer_base_url     = "https://s4wndhtrbjoflmoqeb4zvvmeim0cyodv.lambda-url.us-east-1.on.aws/"

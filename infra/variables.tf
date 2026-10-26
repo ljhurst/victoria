@@ -29,11 +29,6 @@ variable "viewer_lambda_package_path" {
   type        = string
 }
 
-variable "viewer_base_url" {
-  description = "The viewer Lambda's own Function URL (see the `viewer_url` output). Set after the first apply; must match the redirect URI registered for the `victoria-viewer` client in Lasso."
-  type        = string
-}
-
 variable "lasso_issuer_url" {
   description = "Lasso's OIDC issuer URL — the authorization server Victoria verifies MCP bearer tokens against."
   type        = string

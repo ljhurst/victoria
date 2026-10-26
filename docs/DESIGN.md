@@ -526,8 +526,7 @@ conventions, and now `mcp/server.py`'s auth can all proceed.
 - [x] Read-only wiki viewer (§17): `victoria-viewer` workspace member + its
       own Lambda in `infra/viewer.tf`. Still to do: register the
       `victoria-viewer` client + grant your user `victoria:read` in the lasso
-      repo, set the session-secret SSM value, and the two-step
-      `viewer_base_url` apply
+      repo and set the session-secret SSM value
 - [ ] (Phase 2) `infra/`: EventBridge schedule for the periodic consolidate job (§9)
 - [ ] (Later) design file/image ingestion pipeline
 - [ ] (Later) if read-tool cold start is actually noticeable in daily use,
@@ -558,8 +557,8 @@ a file browser and markdown renderer over the same S3 wiki, no editing.
 - **Stack**: Starlette + Jinja + htmx, `markdown-it-py` for rendering,
   Pico.css + github-markdown-css + highlight.js from CDN. htmx swaps the page
   pane on navigation and on an explicit refresh button; there is no polling.
-- **Two-step first apply**: the viewer's own Function URL isn't known until
-  the resource exists and feeds both `VIEWER_BASE_URL` and the Lasso redirect
-  URI, so apply once with `viewer_base_url = ""`, then set it from the
-  `viewer_url` output and apply again — the same dance `resource_server_url`
-  already needs.
+- **Address**: the viewer is served at `victoria-viewer.bylukehurst.com`
+  through CloudFront (stych's `function-url-site` module). `local.viewer_domain`
+  in `infra/viewer.tf` is the single source for the CloudFront alias,
+  `VIEWER_BASE_URL`, the Lasso resource and the redirect URI; the Function URL
+  is only the CloudFront origin.
