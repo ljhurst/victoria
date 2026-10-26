@@ -15,7 +15,7 @@ from victoria.mcp.server import build_app
 
 ISSUER_URL = "https://lasso.example.com"
 RESOURCE_SERVER_URL = "https://victoria.example.com"
-LEGACY_RESOURCE_URL = "https://legacy.example.com"
+RETIRED_RESOURCE_URL = "https://abc123.lambda-url.us-east-1.on.aws/"
 
 _private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
@@ -64,14 +64,13 @@ def test_rejects_missing_bearer_token():
     assert response.status_code == 401
 
 
-def test_rejects_token_with_wrong_audience():
+@pytest.mark.parametrize("audience", ["https://someone-else.example.com", RETIRED_RESOURCE_URL])
+def test_rejects_token_with_wrong_audience(audience):
     with _patch_jwks(), TestClient(_app()) as client:
         response = client.post(
             "/mcp",
             json={},
-            headers={
-                "Authorization": f"Bearer {_token(audience='https://someone-else.example.com')}"
-            },
+            headers={"Authorization": f"Bearer {_token(audience=audience)}"},
         )
     assert response.status_code == 401
 
@@ -210,48 +209,3 @@ def test_rebuilding_the_app_reuses_one_jwks_client():
         _app()
 
     jwks_client.assert_called_once()
-
-
-def _accept_legacy_audience(monkeypatch):
-    monkeypatch.setenv("VICTORIA_RESOURCE_URL_ALIASES", LEGACY_RESOURCE_URL)
-    get_mcp_settings.cache_clear()
-    get_lasso_validator.cache_clear()
-
-
-def _status_for(audience):
-    with _patch_jwks(), TestClient(_app()) as client:
-        response = client.post(
-            "/mcp",
-            json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
-            headers={
-                "Authorization": f"Bearer {_token(audience=audience)}",
-                "Accept": "application/json, text/event-stream",
-            },
-        )
-    return response.status_code
-
-
-@pytest.mark.parametrize("audience", [RESOURCE_SERVER_URL, LEGACY_RESOURCE_URL])
-def test_accepts_the_primary_and_the_legacy_audience(monkeypatch, audience):
-    _accept_legacy_audience(monkeypatch)
-
-    assert _status_for(audience) != 401
-
-
-def test_rejects_an_unlisted_audience_even_with_a_legacy_one(monkeypatch):
-    _accept_legacy_audience(monkeypatch)
-
-    assert _status_for("https://other.example.com") == 401
-
-
-def test_rejects_the_legacy_audience_when_none_is_configured():
-    assert _status_for(LEGACY_RESOURCE_URL) == 401
-
-
-def test_metadata_advertises_only_the_primary_resource(monkeypatch):
-    _accept_legacy_audience(monkeypatch)
-
-    with TestClient(_app()) as client:
-        body = client.get("/.well-known/oauth-protected-resource").json()
-
-    assert body["resource"] == RESOURCE_SERVER_URL

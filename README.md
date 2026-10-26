@@ -49,10 +49,10 @@ See the example [use cases](docs/USE_CASES.md).
 
 ## Connect
 
-The MCP server is an AWS Lambda that lives at
+The MCP server is an AWS Lambda served through CloudFront at
 
 ```text
-https://diozeathy56roah5fxesmhji640ugrkn.lambda-url.us-east-1.on.aws/mcp
+https://victoria-mcp.bylukehurst.com/mcp
 ```
 
 You can connect with the [MCP Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector)

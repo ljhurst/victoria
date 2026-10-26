@@ -1,6 +1,6 @@
 [project]
 name = "victoria-mcp"
-version = "0.3.0"
+version = "0.4.0"
 description = "Victoria's MCP server — the Lambda that Claude connects to"
 readme = "README.md"
 requires-python = ">=3.13"
