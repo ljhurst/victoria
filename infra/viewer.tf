@@ -3,6 +3,7 @@
 # role and log group. Mirrors mcp.tf.
 
 locals {
+  viewer_domain        = "victoria-viewer.bylukehurst.com"
   viewer_function_name = "lj-victoria-viewer"
 }
 
@@ -76,4 +77,12 @@ resource "aws_lambda_function_url" "viewer" {
 resource "aws_cloudwatch_log_group" "viewer" {
   name              = "/aws/lambda/${aws_lambda_function.viewer.function_name}"
   retention_in_days = 30
+}
+
+module "viewer_front" {
+  source = "git::https://github.com/ljhurst/stych.git//infra/modules/function-url-site?ref=v1.5.0"
+
+  domain_name    = local.viewer_domain
+  function_url   = aws_lambda_function_url.viewer.function_url
+  origin_timeout = aws_lambda_function.viewer.timeout
 }
