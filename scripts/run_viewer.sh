@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../agent"
 
 export WIKI_BUCKET="${WIKI_BUCKET:-lj-victoria-wiki}"
-export LASSO_ISSUER_URL="${LASSO_ISSUER_URL:-https://zzspanxrc7v4tvou4acvdq36oi0yjdrz.lambda-url.us-east-1.on.aws/}"
+export LASSO_ISSUER_URL="${LASSO_ISSUER_URL:-https://lasso.bylukehurst.com/}"
 export VIEWER_BASE_URL="${VIEWER_BASE_URL:-http://localhost:8000}"
 # Local redirect stays on localhost, but the token is audience-bound to the
 # deployed viewer URL — the resource indicator actually registered in Lasso.
