@@ -5,4 +5,4 @@ project_name = "victoria"
 mcp_lambda_package_path    = "../agent/dist/victoria-mcp.zip"
 viewer_lambda_package_path = "../agent/dist/victoria-viewer.zip"
 
-lasso_issuer_url = "https://zzspanxrc7v4tvou4acvdq36oi0yjdrz.lambda-url.us-east-1.on.aws/"
+lasso_issuer_url = "https://lasso.bylukehurst.com/"
