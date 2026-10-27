@@ -15,3 +15,14 @@ jobs:
     uses: ljhurst/stych/.github/workflows/pre-commit.yml@v1
     with:
       terraform-version: "1.17.0"
+
+  test:
+    uses: ljhurst/stych/.github/workflows/test.yml@v1
+    with:
+      command: uv run pytest -q
+      setup-command: uv sync --locked
+      working-directory: agent
+      setup-uv: true
+      paths: |
+        agent/**
+        .github/workflows/check.yml
