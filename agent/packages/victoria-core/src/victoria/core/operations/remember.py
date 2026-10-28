@@ -45,7 +45,9 @@ _FILE_NOTE_TOOL = {
         "properties": {
             "summary": {
                 "type": "string",
-                "description": "One sentence describing what was filed and where.",
+                "description": (
+                    "One sentence describing what was filed and where. Say nothing about index.md."
+                ),
             },
             "page_getting_large": {
                 "type": "boolean",
@@ -69,6 +71,9 @@ life. Use an existing domain (wiki/<domain>/...) when the note is about that \
 area. If the note is about a different area of life (vehicles or travel, \
 say), start a new domain rather than stretching an existing one to cover it, \
 with a short lowercase name, hyphenated if it needs more than one word.
+
+index.md is updated for you after a page is created. Never create or edit it, \
+and never mention it.
 
 Write every fact the note states and nothing else, tersely and factually, as the Writing style \
 section above describes: no background, suggestions, open questions or next \

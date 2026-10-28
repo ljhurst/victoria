@@ -80,10 +80,16 @@ def test_remember_gives_the_model_the_domains_and_how_to_edit(s3_bucket, setting
     assert "existing domains are: house, business." in captured["system"]
     assert "Write every fact the note states and nothing else" in captured["system"]
     assert "never call view" in captured["system"]
+    assert "index.md is updated for you after a page is created" in captured["system"]
     assert [tool["name"] for tool in captured["tools"]] == [
         "str_replace_based_edit_tool",
         "file_note",
     ]
+    file_note = next(tool for tool in captured["tools"] if tool["name"] == "file_note")
+    assert (
+        "Say nothing about index.md"
+        in file_note["input_schema"]["properties"]["summary"]["description"]
+    )
 
 
 def test_remember_files_into_a_new_domain(s3_bucket, settings):

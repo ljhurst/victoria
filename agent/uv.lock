@@ -1491,7 +1491,7 @@ evals = [
 
 [[package]]
 name = "victoria-core"
-version = "0.8.0"
+version = "0.8.1"
 source = { editable = "packages/victoria-core" }
 dependencies = [
     { name = "anthropic" },
@@ -1516,7 +1516,7 @@ requires-dist = [
 
 [[package]]
 name = "victoria-mcp"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/victoria-mcp" }
 dependencies = [
     { name = "aws-lambda-powertools" },
