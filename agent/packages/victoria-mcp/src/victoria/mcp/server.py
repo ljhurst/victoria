@@ -3,6 +3,7 @@ from starlette.applications import Starlette
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
 from mcp.server.streamable_http import TransportSecuritySettings
+from mcp.types import ToolAnnotations
 from victoria.mcp import handlers
 from victoria.mcp.auth import LassoTokenVerifier
 from victoria.mcp.config import get_mcp_settings
@@ -32,9 +33,10 @@ def build_app() -> Starlette:
         subscriptions=False,
     )
 
-    server.add_tool(handlers.list_files)
-    server.add_tool(handlers.get_file)
-    server.add_tool(handlers.search_wiki)
+    read_only = ToolAnnotations(readOnlyHint=True)
+    server.add_tool(handlers.list_files, annotations=read_only)
+    server.add_tool(handlers.get_file, annotations=read_only)
+    server.add_tool(handlers.search_wiki, annotations=read_only)
     server.add_tool(handlers.remember)
     server.add_tool(handlers.consolidate)
 
