@@ -1,6 +1,6 @@
 # Everything for the MCP server Lambda — the endpoint Claude connects to (via
-# porto). Read/write on the wiki bucket, the Anthropic key, its own role and
-# log group. Mirrors viewer.tf.
+# porto). Read/write on the wiki bucket, an AWS-signed identity token for the
+# Anthropic API, its own role and log group. Mirrors viewer.tf.
 
 locals {
   mcp_domain        = "victoria-mcp.bylukehurst.com"
@@ -22,10 +22,16 @@ data "aws_iam_policy_document" "mcp_lambda_permissions" {
   }
 
   statement {
-    sid       = "ReadAnthropicApiKey"
+    sid       = "AnthropicIdentityToken"
     effect    = "Allow"
-    actions   = ["ssm:GetParameter"]
-    resources = ["${local.ssm_param_arn_prefix}${local.anthropic_api_key_ssm_param}"]
+    actions   = ["sts:GetWebIdentityToken"]
+    resources = ["*"]
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "sts:IdentityTokenAudience"
+      values   = ["https://api.anthropic.com"]
+    }
   }
 
   statement {
@@ -58,11 +64,14 @@ resource "aws_lambda_function" "mcp" {
 
   environment {
     variables = {
-      WIKI_BUCKET                 = aws_s3_bucket.wiki.bucket
-      LASSO_ISSUER_URL            = var.lasso_issuer_url
-      VICTORIA_RESOURCE_URL       = "https://${local.mcp_domain}/"
-      ANTHROPIC_API_KEY_SSM_PARAM = local.anthropic_api_key_ssm_param
-      POWERTOOLS_SERVICE_NAME     = "victoria-mcp"
+      WIKI_BUCKET             = aws_s3_bucket.wiki.bucket
+      LASSO_ISSUER_URL        = var.lasso_issuer_url
+      VICTORIA_RESOURCE_URL   = "https://${local.mcp_domain}/"
+      POWERTOOLS_SERVICE_NAME = "victoria-mcp"
+
+      ANTHROPIC_FEDERATION_RULE_ID = var.anthropic_federation.rule_id
+      ANTHROPIC_ORGANIZATION_ID    = var.anthropic_federation.organization_id
+      ANTHROPIC_SERVICE_ACCOUNT_ID = var.anthropic_federation.service_account_id
     }
   }
 }

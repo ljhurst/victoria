@@ -11,6 +11,7 @@ from pydantic import TypeAdapter
 
 from victoria.core.config import CoreSettings
 from victoria.core.integrations import anthropic_client
+from victoria.core.integrations.models import AnthropicFederation
 from victoria.core.operations.models import ConsolidateResult
 from victoria.core.pages import frontmatter, log
 from victoria.core.storage import search_index, wiki
@@ -119,12 +120,12 @@ def _dispatch(
     raise ValueError(f"unknown tool: {name}")
 
 
-def consolidate(settings: CoreSettings, api_key: str) -> ConsolidateResult:
+def consolidate(settings: CoreSettings, federation: AnthropicFederation) -> ConsolidateResult:
     bucket = settings.wiki_bucket
     conventions = wiki.get_file(bucket, settings.wiki_files.conventions).content
 
     with search_index.open_session(bucket, settings.search_index.db_key) as index:
-        client = anthropic_client.get_client(api_key)
+        client = anthropic_client.get_client(federation)
         report = anthropic_client.run_tool_loop(
             client,
             model=anthropic_client.SONNET_MODEL,

@@ -3,11 +3,13 @@ remember's merge decision, stronger model for consolidate's cross-page synthesis
 """
 
 from collections.abc import Callable
+from functools import lru_cache
 from typing import Any
 
 import anthropic
+import boto3
 
-from victoria.core.integrations.models import ToolCall
+from victoria.core.integrations.models import AnthropicFederation, ToolCall
 from victoria.core.observability import timed
 
 HAIKU_MODEL = "claude-haiku-5-5"
@@ -15,9 +17,24 @@ SONNET_MODEL = "claude-sonnet-5"
 
 MAX_LINT_TOOL_ITERATIONS = 8
 
+ANTHROPIC_AUDIENCE = "https://api.anthropic.com"
 
-def get_client(api_key: str) -> anthropic.Anthropic:
-    return anthropic.Anthropic(api_key=api_key)
+
+@lru_cache(maxsize=1)
+def get_client(federation: AnthropicFederation | None = None) -> anthropic.Anthropic:
+    """With `federation`, authenticate as the Lambda's IAM role through
+    Workload Identity Federation. Without it, fall back to the SDK's own
+    resolution (`ANTHROPIC_API_KEY` or an `ant auth login` profile), for local
+    runs such as evals."""
+    if federation is None:
+        return anthropic.Anthropic()
+
+    return anthropic.Anthropic(
+        credentials=anthropic.WorkloadIdentityCredentials(
+            identity_token_provider=_sts_identity_token,
+            **federation.model_dump(),
+        )
+    )
 
 
 def call_tools(
@@ -100,6 +117,17 @@ def run_tool_loop(
         messages.append({"role": "user", "content": tool_results})
 
     raise RuntimeError(f"tool loop did not converge within {max_iterations} iterations")
+
+
+@timed("sts_identity_token")
+def _sts_identity_token() -> str:
+    # Called on every exchange: a token carrying a jti can only be exchanged once.
+    response = boto3.client("sts").get_web_identity_token(
+        Audience=[ANTHROPIC_AUDIENCE],
+        SigningAlgorithm="RS256",
+        DurationSeconds=900,
+    )
+    return response["WebIdentityToken"]
 
 
 def _response_fields(response: anthropic.types.Message) -> dict[str, Any]:

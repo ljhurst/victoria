@@ -121,12 +121,27 @@ Merging to `main` deploys. The [Terraform workflow](https://github.com/ljhurst/s
 from stych builds both Lambda zips and applies `infra/` as `victoria-ci-apply`. Every
 PR gets the plan as a comment, made as the read-only `victoria-ci-plan`.
 
-Before the first apply, create the two secrets. Terraform only references them by name, so their values never reach state
+Before the first apply, create the viewer's session secret. Terraform only references it by name, so its value never reaches state
 
 ```bash
-aws ssm put-parameter --name /victoria/anthropic-api-key --type SecureString --value ...
 aws ssm put-parameter --name /victoria/viewer-session-secret --type SecureString --value ...
 ```
+
+The MCP Lambda calls the Anthropic API without a key, through Workload Identity
+Federation: its role mints an AWS-signed token with `sts:GetWebIdentityToken`
+and exchanges it for a short-lived Anthropic token. Setting it up once:
+
+1. stych enables outbound identity federation for the account and allows the
+   role in its boundary. `terraform -chdir=infra output outbound_identity_issuer`
+   in stych prints the issuer URL.
+2. In the Claude Console, Settings > Workload identity > Connect workload > AWS:
+   register that issuer, create a service account, and a rule matching
+   `arn:aws:iam::<account>:role/victoria-lambda` with audience
+   `https://api.anthropic.com`.
+3. Put the rule, organization and service account IDs in
+   `anthropic_federation` in `infra/terraform.tfvars`.
+
+Denied exchanges show their reason on the Console's Workload identity history tab.
 
 To deploy by hand (break-glass only), log in as `victoria-deploy` (see [AWS Creds](#aws-creds)), build the zips and apply
 
@@ -142,7 +157,8 @@ terraform -chdir=infra apply victoria.tfplan
 Evals call the real Anthropic API, so they're kept out of the pytest suite
 and run on demand. They use [Pydantic Evals](https://ai.pydantic.dev/evals/):
 each eval is a script plus a YAML file of cases next to it, and each case
-declares the checks it expects. The API key is read from `ANTHROPIC_API_KEY`.
+declares the checks it expects. Sign in with `ant auth login`, or export
+`ANTHROPIC_API_KEY`.
 
 From `agent/`
 

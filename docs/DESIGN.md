@@ -155,11 +155,13 @@ Three agent operations:
     `refresh_token`).
 - This closes the earlier gap where an unauthenticated public endpoint holding
   home-inventory and LLC/tax data was a real cost and privacy risk.
-- Secrets: the Anthropic API key still lives in **SSM Parameter Store**
-  (SecureString, KMS-encrypted). Auth config (`LASSO_ISSUER_URL`,
-  `VICTORIA_RESOURCE_URL`) is plain Lambda environment variables, set via
-  Terraform — nothing secret to store for victoria's own inbound auth, since
-  JWT verification only needs Lasso's public JWKS.
+- Secrets: none for the Anthropic API. The MCP Lambda's IAM role mints an
+  AWS-signed JWT (`sts:GetWebIdentityToken`) and exchanges it for a
+  short-lived Anthropic token through Workload Identity Federation; the
+  federation IDs are plain environment variables. Auth config
+  (`LASSO_ISSUER_URL`, `VICTORIA_RESOURCE_URL`) is plain Lambda environment
+  variables too, set via Terraform — nothing secret to store for victoria's
+  own inbound auth, since JWT verification only needs Lasso's public JWKS.
 
 ## 6. Search — S3 has no native full-text search
 

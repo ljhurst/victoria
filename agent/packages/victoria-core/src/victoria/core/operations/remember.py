@@ -14,6 +14,7 @@ import anthropic
 from victoria.core import observability
 from victoria.core.config import CoreSettings
 from victoria.core.integrations import anthropic_client
+from victoria.core.integrations.models import AnthropicFederation
 from victoria.core.observability import timed
 from victoria.core.operations.models import RememberResult
 from victoria.core.pages import edits, frontmatter, index_links, log
@@ -104,13 +105,13 @@ class PagePlan(EditedPage):
 
 
 @timed("remember")
-def remember(settings: CoreSettings, api_key: str, text: str) -> RememberResult:
+def remember(settings: CoreSettings, federation: AnthropicFederation, text: str) -> RememberResult:
     bucket = settings.wiki_bucket
     with timed("read_wiki_context"):
         conventions = wiki.get_file(bucket, settings.wiki_files.conventions).content
         index_md = wiki.get_file(bucket, settings.wiki_files.index).content
         domains = list(index_links.domain_headings(index_md))
-    client = anthropic_client.get_client(api_key)
+    client = anthropic_client.get_client(federation)
 
     with search_index.open_session(bucket, settings.search_index.db_key) as index:
         with timed("related_pages"):

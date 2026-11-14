@@ -1,16 +1,16 @@
 """Evals for remember's filing decision against the real model.
 
 Calls the Anthropic API, so it's kept out of the pytest suite and run on
-demand from agent/:
+demand from agent/, signed in with `ant auth login` or with ANTHROPIC_API_KEY
+exported:
 
-    ANTHROPIC_API_KEY=... uv run --group evals python evals/core/operations/remember_decide.py
+    uv run --group evals python evals/core/operations/remember_decide.py
 
 Pass --case (repeatable) to run only some cases, and --repeat to change how
 many times each one runs.
 """
 
 import argparse
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -134,7 +134,7 @@ def main() -> None:
     )
     if args.cases:
         _select_cases(dataset, args.cases)
-    client = anthropic_client.get_client(os.environ["ANTHROPIC_API_KEY"])
+    client = anthropic_client.get_client()
     conventions = CONVENTIONS_PATH.read_text()
 
     def decide(inputs: DecideInputs) -> DecideOutput:
