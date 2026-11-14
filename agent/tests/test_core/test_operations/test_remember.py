@@ -6,7 +6,7 @@ from moto import mock_aws
 
 from victoria.core import observability
 from victoria.core.config import CoreSettings
-from victoria.core.integrations.models import ToolCall
+from victoria.core.integrations.models import AnthropicFederation, ToolCall
 from victoria.core.operations import remember
 from victoria.core.pages import edits
 from victoria.core.pages.models import PageAction
@@ -15,6 +15,9 @@ from victoria.core.storage.errors import ConditionalWriteFailedError
 from victoria.core.storage.models import IndexEntry
 
 BUCKET = "victoria-test"
+FEDERATION = AnthropicFederation(
+    federation_rule_id="fdrl_test", organization_id="org_test", service_account_id="svac_test"
+)
 SEED_INDEX = "# Wiki index\n\n## House\n\n_(no pages yet — created by `remember` as topics come up)_\n\n## Business\n\n_(no pages yet — created by `remember` as topics come up)_\n"
 
 
@@ -75,7 +78,7 @@ def test_remember_gives_the_model_the_domains_and_how_to_edit(s3_bucket, setting
         return [_note(), _create()]
 
     with patch.object(remember.anthropic_client, "call_tools", side_effect=fake_call_tools):
-        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+        remember.remember(settings, FEDERATION, "hydrangeas struggling")
 
     assert "existing domains are: house, business." in captured["system"]
     assert "Write every fact the note states and nothing else" in captured["system"]
@@ -95,7 +98,7 @@ def test_remember_gives_the_model_the_domains_and_how_to_edit(s3_bucket, setting
 def test_remember_files_into_a_new_domain(s3_bucket, settings):
     page = "---\ntitle: Tools\n---\n\nsocket set\n"
     with _model_returns([_note(), _create("wiki/garage/tools.md", page)]):
-        remember.remember(settings, "fake-api-key", "bought a new socket set")
+        remember.remember(settings, FEDERATION, "bought a new socket set")
 
     assert wiki.file_exists(BUCKET, "wiki/garage/tools.md")
     index = wiki.get_file(BUCKET, "index.md").content
@@ -104,7 +107,7 @@ def test_remember_files_into_a_new_domain(s3_bucket, settings):
 
 def test_remember_creates_new_page_and_links_it(s3_bucket, settings):
     with _model_returns([_note(), _create()]):
-        result = remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+        result = remember.remember(settings, FEDERATION, "hydrangeas struggling")
 
     assert result.page == "wiki/house/plants.md"
     assert result.action == PageAction.CREATE
@@ -135,7 +138,7 @@ def test_remember_finds_and_includes_related_pages(s3_bucket, settings):
         return [_note(), _replace("Struggling, planted this year.", "Struggling.\nBloomed pink.")]
 
     with patch.object(remember.anthropic_client, "call_tools", side_effect=fake_call_tools):
-        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+        remember.remember(settings, FEDERATION, "hydrangeas struggling")
 
     assert "wiki/house/plants.md" in captured["user_message"]
     assert "Struggling, planted this year." in captured["user_message"]
@@ -150,7 +153,7 @@ def test_remember_updates_existing_page_by_applying_the_edit(s3_bucket, settings
     )
 
     with _model_returns([_note(), edit]):
-        result = remember.remember(settings, "fake-api-key", "hydrangeas bloomed pink")
+        result = remember.remember(settings, FEDERATION, "hydrangeas bloomed pink")
 
     assert result.action == PageAction.UPDATE
     page = wiki.get_file(BUCKET, "wiki/house/plants.md").content
@@ -177,7 +180,7 @@ def test_remember_does_not_overwrite_a_page_changed_after_it_was_read(s3_bucket,
         ),
         pytest.raises(ConditionalWriteFailedError),
     ):
-        remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     assert "someone else's note" in wiki.get_file(BUCKET, "wiki/house/plants.md").content
 
@@ -194,7 +197,7 @@ def test_remember_retries_once_when_an_edit_does_not_match(s3_bucket, settings):
         return [_note(), _replace("Struggling, planted this year.", "Thriving.")]
 
     with patch.object(remember.anthropic_client, "call_tools", side_effect=fake_call_tools):
-        remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     assert "rejected" not in messages[0]
     assert "Your previous edits were rejected" in messages[1]
@@ -211,7 +214,7 @@ def test_remember_retries_when_the_model_uses_an_unavailable_command(s3_bucket, 
     )
 
     with _model_returns([_note(), view], [_note(), _replace("Struggling", "Thriving")]):
-        remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     assert "Thriving" in wiki.get_file(BUCKET, "wiki/house/plants.md").content
 
@@ -223,7 +226,7 @@ def test_remember_writes_nothing_when_the_retry_is_also_rejected(s3_bucket, sett
     bad = [_note(), _replace("not on the page", "x")]
 
     with _model_returns(bad, bad), pytest.raises(edits.EditError, match="matched 0 times"):
-        remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     assert wiki.get_file(BUCKET, "wiki/house/plants.md").content == PLANTS_PAGE
     assert wiki.get_file(BUCKET, "log.md").content == log_before
@@ -244,7 +247,7 @@ def test_remember_shows_the_model_a_page_it_edits_without_having_seen_it(s3_buck
         return [_note(), _replace("Struggling, planted this year.", "Thriving.")]
 
     with patch.object(remember.anthropic_client, "call_tools", side_effect=fake_call_tools):
-        remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     assert "Struggling, planted this year." not in messages[0]
     assert "was not shown" in messages[1]
@@ -265,7 +268,7 @@ def test_remember_does_not_let_a_create_overwrite_an_unseen_existing_page(s3_buc
         return [_note(), _replace("Struggling, planted this year.", "Thriving.")]
 
     with patch.object(remember.anthropic_client, "call_tools", side_effect=fake_call_tools):
-        result = remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        result = remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     assert result.action == PageAction.UPDATE
     page = wiki.get_file(BUCKET, "wiki/house/plants.md").content
@@ -283,7 +286,7 @@ def _outer_stages(logger) -> list[str]:
 
 def test_remember_logs_each_stage_when_creating_a_page(s3_bucket, settings):
     with _model_returns([_note(), _create()]), patch.object(observability, "logger") as logger:
-        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+        remember.remember(settings, FEDERATION, "hydrangeas struggling")
 
     assert _outer_stages(logger) == [
         "read_wiki_context",
@@ -306,7 +309,7 @@ def test_remember_skips_index_link_stage_when_updating_a_page(s3_bucket, setting
         _model_returns([_note(), _replace("Struggling", "Thriving")]),
         patch.object(observability, "logger") as logger,
     ):
-        remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     stages = _outer_stages(logger)
     assert "write_page" in stages
@@ -324,7 +327,7 @@ def test_remember_logs_the_rejected_edit_before_retrying(s3_bucket, settings):
         ),
         patch.object(observability, "logger") as logger,
     ):
-        remember.remember(settings, "fake-api-key", "hydrangeas recovered")
+        remember.remember(settings, FEDERATION, "hydrangeas recovered")
 
     (warning,) = logger.warning.call_args_list
     assert warning.args == ("edits rejected, retrying",)
@@ -337,7 +340,7 @@ def test_remember_logs_failure_of_the_top_level_stage(s3_bucket, settings):
         patch.object(observability, "logger") as logger,
         pytest.raises(TimeoutError),
     ):
-        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+        remember.remember(settings, FEDERATION, "hydrangeas struggling")
 
     failures = [(c.kwargs["stage"], c.kwargs["error"]) for c in logger.error.call_args_list]
     assert failures == [("remember", "TimeoutError")]
@@ -345,7 +348,7 @@ def test_remember_logs_failure_of_the_top_level_stage(s3_bucket, settings):
 
 def test_remember_s3_calls_are_logged_inside_the_stage_that_made_them(s3_bucket, settings):
     with _model_returns([_note(), _create()]), patch.object(observability, "logger") as logger:
-        remember.remember(settings, "fake-api-key", "hydrangeas struggling")
+        remember.remember(settings, FEDERATION, "hydrangeas struggling")
 
     finished = _finished_stages(logger)
     assert finished[finished.index("write_page") - 1] == "s3_put"

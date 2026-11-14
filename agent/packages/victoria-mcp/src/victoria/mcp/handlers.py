@@ -15,7 +15,7 @@ from victoria.core.config import get_core_settings
 from victoria.core.operations.models import ConsolidateResult, RememberResult
 from victoria.core.storage import search_index, wiki
 from victoria.core.storage.models import ListFilesResult, PageContent, SearchResults
-from victoria.mcp.config import get_anthropic_api_key
+from victoria.mcp.config import get_anthropic_federation
 
 
 def list_files(
@@ -52,11 +52,11 @@ def remember(
     """File new information into the wiki — the 'remember this' path."""
     from victoria.core.operations import remember as remember_core
 
-    return remember_core.remember(get_core_settings(), get_anthropic_api_key(), text)
+    return remember_core.remember(get_core_settings(), get_anthropic_federation(), text)
 
 
 def consolidate() -> ConsolidateResult:
     """Run a consolidation pass: contradictions, stale claims, orphan pages, splits."""
     from victoria.core.operations import consolidate as consolidate_core
 
-    return consolidate_core.consolidate(get_core_settings(), get_anthropic_api_key())
+    return consolidate_core.consolidate(get_core_settings(), get_anthropic_federation())

@@ -2,7 +2,7 @@
 
 Give each friend their own private wiki under `users/<sub>/` in the existing
 bucket, keyed by the `sub` claim of their Lasso token. Cap what they can spend
-on the shared Anthropic key. Three PRs; the first changes nothing for the
+on the shared Anthropic workspace. Three PRs; the first changes nothing for the
 current single user.
 
 ## Decision for Luke
@@ -16,8 +16,8 @@ depends on the answer; PRs 1 and 2 do not.
   `search_index.*` call; there is no notion of whose wiki it is.
 - `LassoTokenValidator` already verifies tokens and returns `sub`, but nothing
   reads it.
-- The Anthropic API key is a single SSM parameter shared by `remember` and
-  `consolidate`.
+- `remember` and `consolidate` share one Anthropic service account (Workload
+  Identity Federation from the Lambda's role).
 - The viewer reads the bucket root.
 
 ## Design

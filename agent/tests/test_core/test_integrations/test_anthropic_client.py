@@ -5,7 +5,7 @@ import pytest
 
 from victoria.core import observability
 from victoria.core.integrations import anthropic_client
-from victoria.core.integrations.models import ToolCall
+from victoria.core.integrations.models import AnthropicFederation, ToolCall
 
 TOOL = {"name": "file_note", "description": "d", "input_schema": {"type": "object"}}
 
@@ -96,3 +96,59 @@ def test_run_tool_loop_logs_each_iteration():
     finished = [c.kwargs for c in logger.info.call_args_list if c.args == ("stage finished",)]
     assert [f["iteration"] for f in finished] == [0, 1]
     assert [f["stop_reason"] for f in finished] == ["tool_use", "end_turn"]
+
+
+@pytest.fixture
+def fresh_client_cache():
+    anthropic_client.get_client.cache_clear()
+    yield
+    anthropic_client.get_client.cache_clear()
+
+
+def test_get_client_with_federation_exchanges_an_sts_token(fresh_client_cache):
+    federation = AnthropicFederation(
+        federation_rule_id="fdrl_1", organization_id="org_1", service_account_id="svac_1"
+    )
+
+    with (
+        patch.object(anthropic_client.anthropic, "WorkloadIdentityCredentials") as credentials,
+        patch.object(anthropic_client.anthropic, "Anthropic") as client_class,
+    ):
+        anthropic_client.get_client(federation)
+
+    credentials.assert_called_once_with(
+        identity_token_provider=anthropic_client._sts_identity_token,
+        federation_rule_id="fdrl_1",
+        organization_id="org_1",
+        service_account_id="svac_1",
+    )
+    client_class.assert_called_once_with(credentials=credentials.return_value)
+
+
+def test_get_client_reuses_one_client_so_warm_lambdas_keep_their_token(fresh_client_cache):
+    federation = AnthropicFederation(
+        federation_rule_id="fdrl_1", organization_id="org_1", service_account_id="svac_1"
+    )
+
+    assert anthropic_client.get_client(federation) is anthropic_client.get_client(federation)
+
+
+def test_get_client_without_federation_uses_the_sdk_default_credentials(fresh_client_cache):
+    with patch.object(anthropic_client.anthropic, "Anthropic") as client_class:
+        anthropic_client.get_client()
+
+    client_class.assert_called_once_with()
+
+
+def test_sts_identity_token_requests_a_fresh_anthropic_audience_jwt():
+    sts = MagicMock()
+    sts.get_web_identity_token.return_value = {"WebIdentityToken": "jwt"}
+
+    with patch.object(anthropic_client.boto3, "client", return_value=sts) as boto_client:
+        token = anthropic_client._sts_identity_token()
+
+    assert token == "jwt"
+    boto_client.assert_called_once_with("sts")
+    sts.get_web_identity_token.assert_called_once_with(
+        Audience=["https://api.anthropic.com"], SigningAlgorithm="RS256", DurationSeconds=900
+    )
