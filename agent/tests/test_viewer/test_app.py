@@ -66,6 +66,14 @@ def authed(monkeypatch):
     monkeypatch.setattr(oauth, "verify_read_token", _verified_token())
 
 
+def test_apple_touch_icon_is_open_png():
+    with TestClient(build_app()) as client:
+        response = client.get("/apple-touch-icon.png")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
+
+
 def test_healthz_is_open():
     with TestClient(build_app()) as client:
         assert client.get("/healthz").text == "ok"
