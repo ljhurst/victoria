@@ -1,5 +1,6 @@
 import functools
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -12,6 +13,8 @@ from victoria.viewer.auth import oauth
 from victoria.viewer.config import get_session_secret, get_viewer_settings
 from victoria.viewer.request_logging import RequestLoggingMiddleware
 from victoria.viewer.routes import auth, pages
+
+APPLE_TOUCH_ICON = Path(__file__).parent / "static" / "apple-touch-icon.png"
 
 Handler = Callable[[Request], Awaitable[Response]]
 
@@ -31,6 +34,7 @@ def build_app() -> Starlette:
 
     routes = [
         Route("/healthz", _healthz, name="healthz"),
+        Route("/apple-touch-icon.png", _apple_touch_icon, name="apple_touch_icon"),
         Route("/", _home, name="home"),
         Route("/login", auth.login, name="login"),
         Route("/auth/callback", auth.callback, name="callback"),
@@ -46,6 +50,14 @@ def build_app() -> Starlette:
 
 async def _healthz(request: Request) -> Response:
     return PlainTextResponse("ok")
+
+
+async def _apple_touch_icon(request: Request) -> Response:
+    return Response(
+        APPLE_TOUCH_ICON.read_bytes(),
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 async def _home(request: Request) -> Response:
